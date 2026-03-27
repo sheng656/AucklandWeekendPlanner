@@ -1,0 +1,2 @@
+# AucklandWeekendPlanner
+AucklandWeekendPlanner
