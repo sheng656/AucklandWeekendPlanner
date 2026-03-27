@@ -1,6 +1,8 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
-const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const client = new BedrockRuntimeClient({
+  region: process.env.BEDROCK_REGION || process.env.AWS_REGION || 'ap-southeast-2',
+});
 
 export const generateItinerary = async (inputs: any, weather: any, events: any[]) => {
   const systemPrompt = `You are an expert Auckland local tour guide. Create a structured weekend itinerary based on the user's inputs: \${JSON.stringify(inputs)}. 

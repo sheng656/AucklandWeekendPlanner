@@ -71,6 +71,7 @@ export class InfrastructureStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       environment: {
         CACHE_TABLE_NAME: cacheTable.tableName,
+        BEDROCK_REGION: process.env.BEDROCK_REGION || process.env.CDK_DEFAULT_REGION || 'ap-southeast-2',
         // Will be populated with Eventfinda API keys from Secrets/Env in reality
         EVENTFINDA_USERNAME: process.env.EVENTFINDA_USERNAME || '',
         EVENTFINDA_PASSWORD: process.env.EVENTFINDA_PASSWORD || '',
