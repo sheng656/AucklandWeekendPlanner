@@ -1,4 +1,4 @@
-import { generateItinerary } from './services/bedrock';
+import { generateItinerary, generateChatReply } from './services/bedrock';
 import { fetchEvents } from './services/eventfinda';
 import { fetchWeather } from './services/openweather';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -16,9 +16,20 @@ export const handler = async (event: any) => {
     }
 
     const body = event.body ? JSON.parse(event.body) : {};
-    const { audience, location, budget, avoidCrowds } = body;
+    const { audience, location, budget, avoidCrowds, messages, context } = body;
 
-    // Default inputs if empty
+    // If chat mode: (has conversation messages)
+    if (messages && messages.length > 0) {
+       console.log('Processing chat message...');
+       const reply = await generateChatReply(messages, context);
+       return {
+         statusCode: 200,
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ reply })
+       };
+    }
+
+    // Default itinerary generation mode:
     const reqInputs = {
       audience: audience || 'Couple',
       location: location || 'Central Auckland',
@@ -26,13 +37,10 @@ export const handler = async (event: any) => {
       avoidCrowds: avoidCrowds || false
     };
 
-    // 1. Generate Cache Key using SHA-256
-    // Include current week for temporal caching logic
     const currentWeekInfo = getWeekNumber(new Date());
     const fingerprintString = JSON.stringify({ reqInputs, currentWeekInfo });
     const cacheKey = crypto.createHash('sha256').update(fingerprintString).digest('hex');
 
-    // 2. Check Cache
     if (CACHE_TABLE_NAME) {
       const getCmd = new GetCommand({
         TableName: CACHE_TABLE_NAME,
@@ -51,18 +59,17 @@ export const handler = async (event: any) => {
 
     console.log('Cache miss. Generating new itinerary...', cacheKey);
 
-    // 3. Fetch Context (parallel)
     const [weather, events] = await Promise.all([
       fetchWeather(reqInputs.location),
       fetchEvents(reqInputs.location)
     ]);
 
-    // 4. Invoke LLM
     const itinerary = await generateItinerary(reqInputs, weather, events);
 
-    // 5. Save to Cache
+    // Save context for chat usage
+    itinerary._context = { reqInputs, weatherContext: weather ? weather.list.slice(0, 5) : null, eventsContext: events };
+
     if (CACHE_TABLE_NAME) {
-      // 7 days TTL
       const ttl = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
       const putCmd = new PutCommand({
         TableName: CACHE_TABLE_NAME,

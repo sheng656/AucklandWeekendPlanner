@@ -7,8 +7,8 @@ export const fetchEvents = async (location: string) => {
     return [];
   }
 
-  // Eventfinda API requires Basic Auth
-  const auth = btoa(`${username}:${password}`);
+  // Eventfinda API requires Basic Auth. Use Buffer.from for Node.js
+  const auth = Buffer.from(`${username}:${password}`).toString('base64');
 
   try {
     // We only fetch a small subset focusing on Auckland
@@ -25,7 +25,7 @@ export const fetchEvents = async (location: string) => {
       return [];
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return data.events || [];
   } catch (error) {
     console.error('Failed to fetch events:', error);

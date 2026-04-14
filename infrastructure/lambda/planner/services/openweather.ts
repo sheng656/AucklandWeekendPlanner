@@ -19,7 +19,7 @@ export const fetchWeather = async (location: string) => {
       return null;
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return data;
   } catch (error) {
     console.error('Failed to fetch weather:', error);
