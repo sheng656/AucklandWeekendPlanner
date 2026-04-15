@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Cyan to Sky Blue Gradient -->
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+  </defs>
+
+  <!-- iOS Style Rounded Background Box -->
+  <rect width="256" height="256" rx="60" fill="url(#blueGrad)" />
+
+  <!-- White Map Pin / Drop -->
+  <path d="M128,40 C83.8,40 48,75.8 48,120 C48,180 128,224 128,224 C128,224 208,180 208,120 C208,75.8 172.2,40 128,40 Z" fill="white" />
+  
+  <!-- Pop of Dopamine Yellow for the Sun/Vibe in the center -->
+  <circle cx="128" cy="116" r="32" fill="#fde047" />
+  
+  <!-- A small Blue Sparkle/Wave accent inside the sun (optional touch) -->
+  <circle cx="136" cy="108" r="8" fill="#38bdf8" />
+  <circle cx="120" cy="124" r="6" fill="#38bdf8" />
+</svg>

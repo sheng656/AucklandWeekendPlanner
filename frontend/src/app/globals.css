@@ -1,8 +1,19 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f5f5f7;
   --foreground: #171717;
+  
+  /* Dopamine Blue-Based Palette */
+  --dopamine-mint: #22d3ee;        /* Cyan 400 */
+  --dopamine-coral: #0ea5e9;       /* Sky Blue 500 */
+  --dopamine-yellow: #fde047;      /* Yellow 300 - kept for contrast */
+  --dopamine-blue: #38bdf8;        /* Sky Blue 400 */
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
 }
 
 @theme inline {
@@ -10,12 +21,19 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  --color-dopamine-mint: var(--dopamine-mint);
+  --color-dopamine-coral: var(--dopamine-coral);
+  --color-dopamine-yellow: var(--dopamine-yellow);
+  --color-dopamine-blue: var(--dopamine-blue);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f172a; /* Slate 900 */
+    --foreground: #f8fafc;
+    --glass-bg: rgba(15, 23, 42, 0.5);
+    --glass-border: rgba(255, 255, 255, 0.1);
   }
 }
 
@@ -23,4 +41,26 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Mesh Gradient Background base using fresh Blues and Cyans */
+.mesh-bg {
+  background-color: var(--background);
+  background-image: 
+    radial-gradient(at 40% 20%, hsla(190, 100%, 75%, 0.4) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(210, 100%, 75%, 0.4) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(170, 90%, 75%, 0.4) 0px, transparent 50%);
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.5rem;
+  box-shadow: var(--glass-shadow);
 }
