@@ -14,7 +14,7 @@ async function getEventfindaConfig() {
   }));
   
   const config: Record<string, string> = {};
-  response.Parameters?.forEach(p => {
+  response.Parameters?.forEach((p: any) => {
     const key = p.Name?.split('/').pop();
     if (key && p.Value) config[key] = p.Value;
   });
@@ -50,7 +50,7 @@ export const handler = async (event: any) => {
         throw new Error(`Eventfinda fetch failed: ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const data: any = await response.json();
       eventsToStore.push(...(data.events || []));
       
       // Delay to respect 1 req per sec strictly

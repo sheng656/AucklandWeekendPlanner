@@ -16,6 +16,7 @@
     "@aws-cdk/aws-apigatewayv2-integrations-alpha": "^2.114.1-alpha.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1018.0",
     "@aws-sdk/client-dynamodb": "^3.1018.0",
+    "@aws-sdk/client-ssm": "^3.1030.0",
     "@aws-sdk/lib-dynamodb": "^3.1018.0",
     "@types/aws-lambda": "^8.10.161",
     "@types/jest": "^30",
