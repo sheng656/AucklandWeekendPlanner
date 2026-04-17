@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import {
   Sparkles,
   MapPin,
@@ -232,9 +233,29 @@ export default function Home() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white/40 p-4 rounded-2xl rounded-tl-none border border-white/50 shadow-sm whitespace-pre-wrap text-zinc-800 leading-relaxed"
+                  className="bg-white/40 p-4 rounded-2xl rounded-tl-none border border-white/50 shadow-sm text-zinc-800 leading-relaxed prose prose-sm max-w-none"
                 >
-                  {responseStream}
+                  <ReactMarkdown 
+                    components={{
+                      h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-4 mb-2 text-zinc-900" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-3 mb-2 text-zinc-800" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-3 mb-2 text-zinc-800" {...props} />,
+                      p: ({node, ...props}) => <p className="mb-2 text-zinc-700" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2 ml-2 text-zinc-700" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2 ml-2 text-zinc-700" {...props} />,
+                      li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                      strong: ({node, ...props}) => <strong className="font-semibold text-zinc-900" {...props} />,
+                      em: ({node, ...props}) => <em className="italic" {...props} />,
+                      code: ({node, inline, ...props}: any) => 
+                        inline ? (
+                          <code className="bg-zinc-100 px-1.5 py-0.5 rounded text-sm font-mono text-zinc-800" {...props} />
+                        ) : (
+                          <code className="block bg-zinc-100 p-2 rounded mb-2 text-sm font-mono text-zinc-800 overflow-x-auto" {...props} />
+                        ),
+                    }}
+                  >
+                    {responseStream}
+                  </ReactMarkdown>
                 </motion.div>
               )}
               {isLoading && (
