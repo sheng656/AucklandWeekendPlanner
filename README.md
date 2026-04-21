@@ -1,56 +1,90 @@
 # Auckland Weekend Planner
 
-An AI-powered web app that generates personalized weekend itineraries for Auckland via chat and form inputs.
+Auckland Weekend Planner is an AI-assisted trip planner for Auckland. Users choose their audience, budget, trip day, and target region, then receive a generated itinerary.
 
-## Architecture
+## Completed Features
 
-- **Frontend**: Next.js App deployed on Vercel
-- **API**: API Gateway + Lambda (Node.js) on AWS
-- **AI**: Amazon Bedrock (Claude 3 Haiku)
-- **Cache**: DynamoDB with TTL
-- **External Data**: Eventfinda + OpenWeather
+### Product and frontend
+- Interactive trip preference selection (audience, budget, trip day, Auckland region).
+- Itinerary generation trigger with loading state and regenerate support.
+- Markdown itinerary rendering for readable sections and bullet lists.
+- Responsive UI with motion effects (Framer Motion) and glass-style cards.
+- Graceful fallback response when the backend request fails.
 
-## Deployment Guide
+### Backend and infrastructure
+- AWS API endpoint at POST /api/v2/plan via API Gateway + Lambda.
+- Bedrock integration using Claude 3 Haiku for itinerary generation.
+- DynamoDB single-table storage for cached pre-warmed events.
+- EventBridge scheduled pre-warming Lambda (runs every 8 hours).
+- Eventfinda data ingestion with explicit rate limiting between requests.
+- SSM Parameter Store integration for secret/config retrieval.
 
-### 1. Prerequisites
-- Node.js 20+
-- AWS CLI configured
-- Bedrock model access granted in `ap-southeast-2` (Claude 3 Haiku)
-- Eventfinda & OpenWeather API Creds
-- Vercel account for Frontend
+### Delivery tooling
+- Infrastructure as code with AWS CDK (TypeScript).
+- Frontend deployment-ready setup for Vercel.
+- Deployment helper script in deploy.ps1.
 
-### 2. Deploy AWS Infrastructure
-1. Move to the infrastructure directory:
-   ```bash
-   cd infrastructure
-   npm install
-   ```
-2. Configure credentials in your terminal:
-   ```bash
-   export EVENTFINDA_USERNAME="your-username"
-   export EVENTFINDA_PASSWORD="your-password"
-   export OPENWEATHER_API_KEY="your-api-key"
-   ```
-3. Deploy the CDK stack:
-   ```bash
-   npx cdk bootstrap aws://<account-id>/ap-southeast-2
-   npx cdk deploy
-   ```
-4. Note the output `InfrastructureStack.ApiUrl`. You will need this for Vercel.
+## Planned Features
 
-### 3. Deploy Frontend to Vercel
-1. Push your repository to GitHub.
-2. Import the project in Vercel.
-3. Set the Framework Preset to `Next.js`.
-4. Set the Root Directory to `frontend`.
-5. Add the Environment Variable `NEXT_PUBLIC_API_URL` using the `ApiUrl` obtained from the AWS deployment.
-6. Deploy.
+- True end-to-end streaming to the frontend (SSE or WebSocket) instead of aggregated response payloads.
+- OpenWeather data integration in the cron/API flow (parameter exists, logic is not wired yet).
+- Map-based itinerary view (Mapbox/MapLibre) with event pins.
+- Personalized user profiles, saved plans, and share/export options.
+- Stronger production security: restricted CORS, model-scoped Bedrock IAM, auth layer.
+- Better observability: CloudWatch dashboards, alarms, and tracing.
+- CI pipeline with automated lint, test, and deployment checks.
 
-## Local Development
+## Architecture Summary
+
+- Frontend: Next.js (frontend)
+- API: API Gateway HTTP API + Lambda (infrastructure/lambda/api/index.ts)
+- AI: Amazon Bedrock (anthropic.claude-3-haiku-20240307-v1:0)
+- Data cache: DynamoDB with TTL
+- Scheduler: EventBridge + cron Lambda (infrastructure/lambda/cron/index.ts)
+- Secrets/config: AWS SSM Parameter Store (/AucklandPlanner/Config/*)
+
+## Repository Layout
+
+```text
+frontend/        Next.js UI
+infrastructure/  AWS CDK stack and Lambda handlers
+docs/            Architecture and UI/UX notes
+deploy.ps1       Interactive deployment helper script
+```
+
+## Quick Start (Local)
+
+### 1. Deploy backend infrastructure
+
+```bash
+cd infrastructure
+npm install
+npm run build
+npx cdk deploy
+```
+
+### 2. Configure frontend environment
+
+Create frontend/.env.local:
+
+```env
+NEXT_PUBLIC_API_URL=https://<api-id>.execute-api.ap-southeast-2.amazonaws.com/api/v2/plan
+```
+
+### 3. Run frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Make sure you create a `.env.local` with `NEXT_PUBLIC_API_URL` pointing to your AWS API Gateway Endpoint to test locally.
+
+Open http://localhost:3000.
+
+## Deployment
+
+Use the single detailed deployment document:
+
+- DEPLOYMENT_GUIDE.md
+
+It includes prerequisites, AWS setup, SSM parameters, CDK deployment, frontend wiring, validation, troubleshooting, and cleanup.

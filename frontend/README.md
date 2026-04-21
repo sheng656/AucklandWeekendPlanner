@@ -1,37 +1,75 @@
-# Auckland Weekend Planner - Frontend
+# Auckland Weekend Planner Frontend
 
-This is a [Next.js](https://nextjs.org) application.
+This directory contains the Next.js application used for itinerary input and result rendering.
 
-## Getting Started
+## Completed Features
 
-First, install dependencies:
+- Preference selection UI for:
+	- Audience: Couples, Friends, Family, Solo
+	- Budget: Free, Low, Medium, High
+	- Trip day: Saturday, Sunday, Both Days
+	- Region: Central Auckland, East Auckland, West Auckland, South Auckland, North Shore, Waiheke Island
+- API call flow to backend with selected preferences.
+- Loading state and itinerary regeneration support.
+- Markdown rendering for structured itinerary output.
+- Responsive, animated visual design using Tailwind + Framer Motion.
+- Basic fallback itinerary when API call fails.
 
-```bash
-npm install
-```
+## Planned Features
 
-Then, run the development server:
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- True token-level streaming output in the UI.
+- Rich map view with activity pins and route suggestions.
+- Saved plans and history.
+- Share/export (PDF or public link).
+- Improved accessibility and keyboard navigation.
 
 ## Environment Variables
 
-Create a `.env.local` file in this directory and reference your AWS API Gateway endpoint:
+Create frontend/.env.local:
 
 ```env
-NEXT_PUBLIC_API_URL=https://<your-api-id>.execute-api.ap-southeast-2.amazonaws.com/api/plan
+NEXT_PUBLIC_API_URL=https://<your-api-id>.execute-api.ap-southeast-2.amazonaws.com/api/v2/plan
 ```
 
-## Deployment on Vercel
+Important: The value must include /api/v2/plan, because the frontend calls this URL directly.
 
-This app is designed to be deployed on Vercel:
+## Local Development
 
-1. Import your project from GitHub to Vercel.
-2. Select the `frontend` folder as the root directory.
-3. Keep the Next.js framework preset.
-4. Add the `NEXT_PUBLIC_API_URL` environment variable.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:3000.
+
+## Deploy on Vercel
+
+1. Import the repository into Vercel.
+2. Set Root Directory to frontend.
+3. Keep the Next.js preset.
+4. Add NEXT_PUBLIC_API_URL with the full API route path.
 5. Deploy.
+
+## Request Contract Used by Frontend
+
+Request body sent to backend:
+
+```json
+{
+	"audience": "Friends",
+	"budget": "Medium",
+	"tripDays": "Both Days",
+	"region": "Central Auckland",
+	"query": "Generate an Auckland weekend itinerary using these inputs..."
+}
+```
+
+Expected successful response:
+
+```json
+{
+	"success": true,
+	"itinerary": "...markdown itinerary..."
+}
+```

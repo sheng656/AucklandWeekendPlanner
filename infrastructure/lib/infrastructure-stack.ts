@@ -38,8 +38,11 @@ export class InfrastructureStack extends cdk.Stack {
     // Allow Cron Lambda to access SSM Parameter Store & Write to DB
     dataTable.grantReadWriteData(cronLambda);
     cronLambda.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ssm:GetParametersByPath', 'ssm:GetParameter'],
-      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/AucklandPlanner/Config/*`],
+      actions: ['ssm:GetParametersByPath', 'ssm:GetParameter', 'ssm:DescribeParameters'],
+      resources: [
+        `arn:aws:ssm:${this.region}:${this.account}:parameter/AucklandPlanner/Config`,
+        `arn:aws:ssm:${this.region}:${this.account}:parameter/AucklandPlanner/Config/*`
+      ],
     }));
 
     // Every 8 hours rule

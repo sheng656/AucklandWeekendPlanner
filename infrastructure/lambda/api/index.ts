@@ -27,22 +27,35 @@ export const handler = async (event: any) => {
     
     console.log("Querying DynamoDB table:", process.env.TABLE_NAME);
     const eventsData = await docClient.send(query);
-    const eventsStr = JSON.stringify(eventsData.Items || []);
-    console.log("Retrieved events from DynamoDB");
+    const events = eventsData.Items || [];
+    console.log(`Retrieved ${events.length} events from DynamoDB:`, JSON.stringify(events));
     
     // 2. Call Bedrock for AI response
     const bedrock = new BedrockRuntimeClient({ region: 'ap-southeast-2' });
     
-    const prompt = `Human: You are an Auckland weekend planner AI.
-Here is the latest live event data: ${eventsStr}
+    const eventsContext = events.length > 0 
+      ? `Here are the actual Auckland events available this weekend:\n${events.map((e: any) => `- ${e.name}: ${e.description || 'No description'} (${e.datetime_start}) - URL: ${e.url}`).join('\n')}`
+      : 'Note: No specific event data is currently available. Please provide general Auckland recommendations.';
+    
+    const prompt = `You are an experienced Auckland weekend planner AI assistant. Your task is to create a detailed, personalized weekend itinerary.
 
-User preferences:
-- Audience: ${audience}
-- Budget: ${budget}
-- Trip Days: ${tripDays}
+${eventsContext}
+
+User Preferences:
+- Group Type: ${audience}
+- Budget Level: ${budget}
+- Days: ${tripDays}
 - Region: ${region}
 
-Plan a personalized weekend itinerary based on these preferences and available events. Use Markdown format with clear sections.`;
+IMPORTANT INSTRUCTIONS:
+1. If specific events are provided above, MUST include them in the itinerary with their exact names, times, and URLs
+2. Include specific venue names, addresses, and activity details
+3. Include links/URLs where applicable
+4. Format clearly with time slots (Morning, Afternoon, Evening)
+5. Provide actual cost estimates for activities based on the budget level
+6. Use Markdown formatting with headers and bullet points
+
+Create a detailed 2-day (or 1-day if specified) Auckland weekend itinerary.`;
     
     const command = new InvokeModelWithResponseStreamCommand({
       modelId: 'anthropic.claude-3-haiku-20240307-v1:0',

@@ -1,0 +1,11 @@
+# Deprecated split deployment docs (use DEPLOYMENT_GUIDE.md only)
+DEPLOYMENT_CHECKLIST.md
+DEPLOYMENT_INDEX.md
+DEPLOYMENT_STEPS.md
+QUICK_REFERENCE.md
+README_DEPLOYMENT.md
+START_HERE.md
+TROUBLESHOOTING.md
+
+# Generated operational notes
+CODE_FIXES_APPLIED.md

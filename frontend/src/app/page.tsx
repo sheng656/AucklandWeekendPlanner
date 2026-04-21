@@ -61,34 +61,16 @@ export default function Home() {
       const data = await response.json();
       
       if (data.success && data.itinerary) {
-        // Simulate streaming text for better UX
-        let index = 0;
-        const text = data.itinerary;
-        const interval = setInterval(() => {
-          if (index < text.length) {
-            setResponseStream((prev) => prev + text.charAt(index));
-            index++;
-          } else {
-            clearInterval(interval);
-            setIsLoading(false);
-          }
-        }, 15);
+        setResponseStream(data.itinerary);
+        setIsLoading(false);
       } else {
         throw new Error(data.error || "Failed to generate itinerary");
       }
     } catch (error) {
       console.error("API Error:", error);
       const dummyRes = `A weekend plan has been prepared for ${audience}.\n\nStart in ${region} with a ${budget} budget.\n\nMorning: keep it relaxed with coffee or a walk.\nAfternoon: add one main activity.\nEvening: finish with a scenic view or dinner.`;
-      let index = 0;
-      const interval = setInterval(() => {
-        setResponseStream((prev) => prev + dummyRes.charAt(index));
-        index++;
-        if (index >= dummyRes.length) {
-          clearInterval(interval);
-          setIsLoading(false);
-        }
-      }, 35);
-      return;
+      setResponseStream(dummyRes);
+      setIsLoading(false);
     }
   };
 
