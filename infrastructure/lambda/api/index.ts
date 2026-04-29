@@ -34,7 +34,7 @@ export const handler = async (event: any) => {
     const bedrock = new BedrockRuntimeClient({ region: 'ap-southeast-2' });
     
     const eventsContext = events.length > 0 
-      ? `Here are the actual Auckland events available this weekend:\n${events.map((e: any) => `- ${e.name}: ${e.description || 'No description'} (${e.datetime_start}) - URL: ${e.url}`).join('\n')}`
+      ? `Here are the actual Auckland events available this weekend:\n${events.map((e: any) => `- [ID: ${e.SK.split('#')[2]}] ${e.name}: ${e.description || 'No description'} (${e.datetime_start}) - Location: ${e.location_summary || 'Unknown'}`).join('\n')}`
       : 'Note: No specific event data is currently available. Please provide general Auckland recommendations.';
     
     const prompt = `You are an experienced Auckland weekend planner AI assistant. Your task is to create a detailed, personalized weekend itinerary.
@@ -48,12 +48,12 @@ User Preferences:
 - Region: ${region}
 
 IMPORTANT INSTRUCTIONS:
-1. If specific events are provided above, MUST include them in the itinerary with their exact names, times, and URLs
+1. If specific events are provided above, MUST include them in the itinerary
 2. Include specific venue names, addresses, and activity details
-3. Include links/URLs where applicable
-4. Format clearly with time slots (Morning, Afternoon, Evening)
-5. Provide actual cost estimates for activities based on the budget level
-6. Use Markdown formatting with headers and bullet points
+3. Format clearly with time slots (Morning, Afternoon, Evening)
+4. Provide actual cost estimates for activities based on the budget level
+5. Use Markdown formatting with headers and bullet points
+6. When recommending an event from the list above, explicitly mention its [ID: xxx] in the text so the frontend can link it to the visual card.
 
 Create a detailed 2-day (or 1-day if specified) Auckland weekend itinerary.`;
     
@@ -93,6 +93,19 @@ Create a detailed 2-day (or 1-day if specified) Auckland weekend itinerary.`;
     
     console.log("Successfully generated response, length:", fullResponse.length);
     
+    // Format events for frontend consumption (removing dynamo PK/SK details)
+    const formattedEvents = events.map((e: any) => ({
+      id: e.SK.split('#')[2] || e.id,
+      name: e.name,
+      description: e.description,
+      image_url: e.image_url,
+      datetime_start: e.datetime_start,
+      datetime_end: e.datetime_end,
+      location_summary: e.location_summary,
+      is_free: e.is_free,
+      url: e.url
+    }));
+
     return {
       statusCode: 200,
       headers: {
@@ -101,7 +114,8 @@ Create a detailed 2-day (or 1-day if specified) Auckland weekend itinerary.`;
       },
       body: JSON.stringify({ 
         success: true,
-        itinerary: fullResponse 
+        itinerary: fullResponse,
+        events: formattedEvents
       })
     };
     

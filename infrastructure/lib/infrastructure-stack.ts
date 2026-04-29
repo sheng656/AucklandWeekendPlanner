@@ -8,6 +8,9 @@ import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as path from 'path';
 
 export class InfrastructureStack extends cdk.Stack {
@@ -23,6 +26,23 @@ export class InfrastructureStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    // 1.5 Image Cache Bucket & CloudFront Distribution (OAC)
+    const imageBucket = new s3.Bucket(this, 'EventImageCache', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      lifecycleRules: [{ expiration: cdk.Duration.days(14) }],
+    });
+
+    const distribution = new cloudfront.Distribution(this, 'ImageDistribution', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(imageBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+        cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+      },
+    });
+
     // 2. EventBridge Cron Job (Pre-warming lambda)
     const cronLambda = new lambdaNodejs.NodejsFunction(this, 'PreWarmingCron', {
       entry: path.join(__dirname, '../lambda/cron/index.ts'),
@@ -32,11 +52,14 @@ export class InfrastructureStack extends cdk.Stack {
       environment: {
         TABLE_NAME: dataTable.tableName,
         SSM_PATH: '/AucklandPlanner/Config', // Path to parameters logic
+        IMAGE_BUCKET_NAME: imageBucket.bucketName,
+        CLOUDFRONT_DOMAIN: distribution.distributionDomainName,
       }
     });
 
     // Allow Cron Lambda to access SSM Parameter Store & Write to DB
     dataTable.grantReadWriteData(cronLambda);
+    imageBucket.grantWrite(cronLambda);
     cronLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['ssm:GetParametersByPath', 'ssm:GetParameter', 'ssm:DescribeParameters'],
       resources: [
@@ -45,9 +68,9 @@ export class InfrastructureStack extends cdk.Stack {
       ],
     }));
 
-    // Every 8 hours rule
+    // Every 24 hours rule
     const rule = new events.Rule(this, 'SchedulePreWarming', {
-      schedule: events.Schedule.rate(cdk.Duration.hours(8)),
+      schedule: events.Schedule.rate(cdk.Duration.hours(24)),
     });
     rule.addTarget(new targets.LambdaFunction(cronLambda));
 
@@ -60,6 +83,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: {
         TABLE_NAME: dataTable.tableName,
         SSM_PATH: '/AucklandPlanner/Config',
+        CLOUDFRONT_DOMAIN: distribution.distributionDomainName,
       }
     });
 
