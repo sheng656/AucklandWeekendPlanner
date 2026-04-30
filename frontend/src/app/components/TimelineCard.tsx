@@ -55,28 +55,28 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
       layout
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      className={`relative timeline-card flex flex-col overflow-hidden group ${isSwapping ? "timeline-card-swapping" : ""}`}
+      className={`relative timeline-card flex flex-col sm:flex-row overflow-hidden group ${isSwapping ? "timeline-card-swapping" : ""}`}
     >
-      {/* Top Cover Image Layer */}
-      <div className="h-32 w-full relative overflow-hidden shrink-0 bg-zinc-100">
+      {/* Cover Image Layer */}
+      <div className="h-32 sm:h-auto w-full sm:w-36 shrink-0 relative overflow-hidden bg-zinc-100">
         <img 
           src={imageUrl}
           alt=""
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           referrerPolicy="no-referrer"
         />
-        {/* Dark gradient from bottom to make text/tags pop if needed */}
+        {/* Dark gradient to make tags pop if needed */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         
         {eventData?.is_free && (
-          <span className="absolute top-2 left-2 bg-emerald-400 text-zinc-900 text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-sm z-10">
+          <span className="absolute top-2 left-2 bg-emerald-400 text-zinc-900 text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm z-10">
             FREE
           </span>
         )}
       </div>
 
       {/* Content Layer */}
-      <div className="p-4 flex flex-col gap-2 relative z-10 bg-white/90">
+      <div className="p-3 sm:p-4 flex flex-col gap-1.5 relative z-10 bg-white/90 flex-1">
         <div className="flex items-start justify-between gap-2">
           <h4 className="font-bold text-zinc-800 text-sm leading-snug flex-1">
             {activity.title}
