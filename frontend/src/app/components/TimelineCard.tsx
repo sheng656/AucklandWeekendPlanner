@@ -55,33 +55,32 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
       layout
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      className={`relative timeline-card p-4 flex flex-col gap-2 overflow-hidden group ${isSwapping ? "timeline-card-swapping" : ""}`}
+      className={`relative timeline-card flex flex-col overflow-hidden group ${isSwapping ? "timeline-card-swapping" : ""}`}
     >
-      {/* Background Image Layer */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Top Cover Image Layer */}
+      <div className="h-32 w-full relative overflow-hidden shrink-0 bg-zinc-100">
         <img 
           src={imageUrl}
           alt=""
-          className="w-full h-full object-cover opacity-15 transition-transform duration-700 group-hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           referrerPolicy="no-referrer"
         />
-        {/* Light gradient overlay to ensure text is readable */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/95 via-white/80 to-white/90" />
+        {/* Dark gradient from bottom to make text/tags pop if needed */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        
+        {eventData?.is_free && (
+          <span className="absolute top-2 left-2 bg-emerald-400 text-zinc-900 text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-sm z-10">
+            FREE
+          </span>
+        )}
       </div>
 
       {/* Content Layer */}
-      <div className="relative z-10">
+      <div className="p-4 flex flex-col gap-2 relative z-10 bg-white/90">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 flex-1">
-            <h4 className="font-bold text-zinc-800 text-sm leading-snug">
-              {activity.title}
-            </h4>
-            {eventData?.is_free && (
-              <span className="bg-emerald-400 text-zinc-900 text-[9px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm whitespace-nowrap">
-                FREE
-              </span>
-            )}
-          </div>
+          <h4 className="font-bold text-zinc-800 text-sm leading-snug flex-1">
+            {activity.title}
+          </h4>
           
           <div className="flex items-center gap-1.5 shrink-0">
             <button
@@ -101,7 +100,7 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
           </div>
         </div>
 
-        <p className="text-xs text-zinc-600 leading-relaxed mt-1">
+        <p className="text-xs text-zinc-600 leading-relaxed mt-1 line-clamp-2">
           {activity.description}
         </p>
 
@@ -131,7 +130,7 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
             href={eventData.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-500 hover:text-blue-700 transition-colors mt-2 w-fit"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-500 hover:text-blue-700 transition-colors mt-1 w-fit"
           >
             View on Eventfinda <ExternalLink className="w-3 h-3" />
           </a>
