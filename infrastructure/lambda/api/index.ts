@@ -42,35 +42,48 @@ export const handler = async (event: any) => {
     let events = eventsData.Items || [];
     console.log(`Retrieved ${events.length} events from DynamoDB`);
 
-    // Region routing logic via LLM
+    // Region routing logic via LLM + Hard Filtering
     const selectedRegions = Array.isArray(region) ? region : (region ? [region] : []);
+    
+    // 1. Code-level Hard Filtering (Efficiency boost for Bedrock only)
+    let bedrockEvents = [...events];
+    if (selectedRegions.length > 0 && selectedRegions.length < 6) {
+      const beforeHardFilter = bedrockEvents.length;
+      bedrockEvents = bedrockEvents.filter((e: any) => {
+        // If the event hasn't been tagged yet (old data) or is tagged as Unknown, keep it for LLM to decide
+        if (!e.mapped_region || e.mapped_region === "Unknown") return true;
+        // If it matches one of the selected regions, keep it
+        return selectedRegions.includes(e.mapped_region);
+      });
+      console.log(`Hard filtering: ${beforeHardFilter} -> ${bedrockEvents.length} events (Filtered by: ${selectedRegions.join(', ')})`);
+    }
+
     let regionInstruction = '';
     if (selectedRegions.length > 0 && selectedRegions.length < 6) {
       regionInstruction = `
 GEOGRAPHICAL CONSTRAINT (CRITICAL):
-The user ONLY wants to explore the following regions in Auckland: ${selectedRegions.join(', ')}.
-You are an expert on Auckland geography. Review the "Location:" field of the available events. 
-- ONLY select and recommend events that are geographically located within or very close to these specified regions.
-- For example, if the user selects "North Shore", events in Takapuna, Albany, or Devonport are valid.
-- DO NOT recommend events located in regions the user did not select.
-- If there are not enough events in the chosen regions to fill a day, supplement with high-quality general sightseeing activities (e.g., parks, beaches, landmarks) strictly within those regions, rather than pulling events from unwanted regions.
+The user ONLY wants to visit: ${selectedRegions.join(', ')}. 
+Please prioritize available events where the "(Region: X)" tag explicitly matches their choice. 
+If an event is tagged as "(Region: Unknown)", use your expert geographical knowledge of Auckland to determine if its location summary falls within the requested areas.
+DO NOT recommend events clearly located in regions the user did not select.
 `;
     } else {
       regionInstruction = `
 GEOGRAPHICAL CONSTRAINT:
-The user has not specified a strict region limit. You are free to recommend events from anywhere across the greater Auckland region, but try to group activities geographically to minimize travel time between morning, lunch, and afternoon activities.
+The user is open to exploring any area in Auckland. Try to group activities geographically to minimize travel time.
 `;
     }
 
     // Ensure we only process weekend events (Friday, Saturday, Sunday)
     const beforeWeekendCount = events.length;
-    events = events.filter((e: any) => {
+    const weekendFilter = (e: any) => {
       if (!e.datetime_start) return false;
       const date = new Date(e.datetime_start);
-      // getDay() is safe here because Eventfinda datetime_start includes NZ timezone offset
       const dow = date.getDay();
       return dow === 0 || dow === 5 || dow === 6; // 0=Sun, 5=Fri, 6=Sat
-    });
+    };
+    events = events.filter(weekendFilter);
+    bedrockEvents = bedrockEvents.filter(weekendFilter);
     if (beforeWeekendCount - events.length > 0) {
       console.log(`Filtered out ${beforeWeekendCount - events.length} non-weekend events`);
     }
@@ -79,6 +92,7 @@ The user has not specified a strict region limit. You are free to recommend even
     if (audience === 'Family') {
       const beforeCount = events.length;
       events = events.filter((e: any) => isAppropriateForFamily(e));
+      bedrockEvents = bedrockEvents.filter((e: any) => isAppropriateForFamily(e));
       const filtered = beforeCount - events.length;
       if (filtered > 0) {
         console.log(`Family mode: filtered out ${filtered} inappropriate events`);
@@ -88,10 +102,11 @@ The user has not specified a strict region limit. You are free to recommend even
     // 2. Call Bedrock for AI response
     const bedrock = new BedrockRuntimeClient({ region: 'ap-southeast-2' });
     
-    const eventsContext = events.length > 0 
-      ? `AVAILABLE AUCKLAND EVENTS THIS WEEKEND:\n` + events.map((e: any) => {
+    const eventsContext = bedrockEvents.length > 0 
+      ? `AVAILABLE AUCKLAND EVENTS THIS WEEKEND:\n` + bedrockEvents.map((e: any) => {
           const shortDesc = e.description ? e.description.substring(0, 150).replace(/\n/g, ' ') + '...' : 'No description';
-          return `- [ID: ${e.SK.split('#')[2]}] ${e.name} | Time: ${e.datetime_start} | Location: ${e.location_summary || 'Auckland'} | Free: ${e.is_free ? 'Yes' : 'No'} | Desc: ${shortDesc}`;
+          const regionLabel = e.mapped_region || "Unknown";
+          return `- [ID: ${e.SK.split('#')[2]}] ${e.name} | Time: ${e.datetime_start} | Loc: ${e.location_summary || 'Auckland'} (Region: ${regionLabel}) | Free: ${e.is_free ? 'Yes' : 'No'} | Desc: ${shortDesc}`;
         }).join('\n')
       : 'Note: No specific event data is currently available. Please provide general Auckland recommendations.';
 
@@ -175,7 +190,7 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
     
     // Build Bedrock invocation options
     const invokeParams: any = {
-      modelId: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
       contentType: 'application/json',
       accept: 'application/json',
       body: JSON.stringify({
@@ -248,7 +263,8 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
             datetime_end: e.datetime_end,
             location_summary: e.location_summary,
             is_free: e.is_free,
-            url: e.url
+            url: e.url,
+            mapped_region: e.mapped_region
           }))
         })
       };
@@ -286,7 +302,8 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
       datetime_end: e.datetime_end,
       location_summary: e.location_summary,
       is_free: e.is_free,
-      url: e.url
+      url: e.url,
+      mapped_region: e.mapped_region
     }));
 
     const recommendedEvents = allFormattedEvents.filter((e: any) => mentionedIds.has(String(e.id)));

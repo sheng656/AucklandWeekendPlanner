@@ -502,6 +502,7 @@ export default function Home() {
                     onToggle={() => setMoreEventsOpen(!moreEventsOpen)}
                     swappingActive={swappingSlot !== null}
                     onSelectEvent={handleSelectEvent}
+                    selectedRegions={region}
                   />
 
                   {/* Actions */}

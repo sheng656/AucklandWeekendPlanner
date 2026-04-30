@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Compass, ChevronDown, Plus, Calendar, MapPin, ExternalLink } from "lucide-react";
+import { Compass, ChevronDown, Plus, Calendar, MapPin, ExternalLink, Map, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface EventData {
   id: string;
@@ -14,6 +14,7 @@ interface EventData {
   location_summary: string;
   is_free: boolean;
   url: string;
+  mapped_region?: string;
 }
 
 interface MoreEventsProps {
@@ -22,6 +23,7 @@ interface MoreEventsProps {
   onToggle: () => void;
   swappingActive: boolean;
   onSelectEvent: (event: EventData) => void;
+  selectedRegions: string[];
 }
 
 export default function MoreEvents({
@@ -30,7 +32,38 @@ export default function MoreEvents({
   onToggle,
   swappingActive,
   onSelectEvent,
+  selectedRegions,
 }: MoreEventsProps) {
+  const [showAllRegions, setShowAllRegions] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
+  // Reset pagination/filters when toggling or new events load
+  useEffect(() => {
+    setCurrentPage(1);
+    setShowAllRegions(false);
+  }, [events, isOpen]);
+
+  const hasSpecificRegions = selectedRegions.length > 0 && selectedRegions.length < 6;
+
+  // Separate events matching user's region preference vs others
+  const matchingEvents = events.filter(e => {
+    if (!e.mapped_region || e.mapped_region === "Unknown") return true; // keep unknowns in the main pool
+    return selectedRegions.includes(e.mapped_region);
+  });
+  
+  const otherRegionEvents = events.filter(e => {
+    if (!e.mapped_region || e.mapped_region === "Unknown") return false;
+    return !selectedRegions.includes(e.mapped_region);
+  });
+
+  const displayList = hasSpecificRegions && !showAllRegions 
+    ? matchingEvents 
+    : [...matchingEvents, ...otherRegionEvents];
+
+  const totalPages = Math.ceil(displayList.length / itemsPerPage);
+  const paginatedEvents = displayList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   if (events.length === 0) return null;
 
   return (
@@ -42,7 +75,7 @@ export default function MoreEvents({
             Explore More Events
           </span>
           <span className="text-xs text-zinc-400 font-normal">
-            ({events.length} available)
+            ({displayList.length} available)
           </span>
         </div>
         <ChevronDown
@@ -69,8 +102,43 @@ export default function MoreEvents({
               </motion.div>
             )}
 
+            {/* Pagination & Filter Controls */}
+            <div className="mx-4 mt-3 flex flex-wrap items-center justify-between gap-3">
+              {hasSpecificRegions && otherRegionEvents.length > 0 && (
+                <button 
+                  onClick={() => { setShowAllRegions(!showAllRegions); setCurrentPage(1); }}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1.5 ${showAllRegions ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'}`}
+                >
+                  <Map className="w-3.5 h-3.5" />
+                  {showAllRegions ? "Showing All Regions" : `Show Other Regions (+${otherRegionEvents.length})`}
+                </button>
+              )}
+              
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-zinc-500 font-medium min-w-[32px] text-center">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="more-events-grid">
-              {events.map((event, idx) => (
+              {paginatedEvents.map((event, idx) => (
                 <motion.div
                   key={event.id}
                   initial={{ opacity: 0, y: 10 }}

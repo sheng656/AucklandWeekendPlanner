@@ -20,6 +20,50 @@ function isAppropriateEvent(event: { name: string; description?: string }): bool
   return !ADULT_KEYWORDS.some(kw => text.includes(kw));
 }
 
+// Auckland Suburb mapping table
+const REGION_MAPPING: Record<string, string[]> = {
+  "Central Auckland": [
+    "cbd", "central", "ponsonby", "parnell", "newmarket", "mt eden", "mount eden", 
+    "epsom", "grey lynn", "pt chev", "point chevalier", "mt albert", "mount albert", 
+    "mission bay", "st heliers", "remuera", "onehunga", "ellerslie", "greenlane",
+    "kingsland", "grafton", "newton", "freemans bay", "herne bay", "sylvia park"
+  ],
+  "North Shore": [
+    "north shore", "takapuna", "albany", "devonport", "milford", "birkenhead", 
+    "glenfield", "northcote", "browns bay", "wairau", "castor bay", "mokoia",
+    "beach haven", "sunnynook", "rothesay", "orewa", "whangaparaoa", "silverdale"
+  ],
+  "West Auckland": [
+    "west auckland", "henderson", "titirangi", "new lynn", "massey", "te atatu", 
+    "hobsonville", "kumeu", "piha", "glen eden", "kelston", "huapai", "muriwai",
+    "swanson", "ranui", "waitakere"
+  ],
+  "South Auckland": [
+    "south auckland", "manukau", "papatoetoe", "mangere", "manurewa", "papakura", 
+    "pukekohe", "otahuhu", "takanini", "karaka", "weymouth", "wiri", "franklin"
+  ],
+  "East Auckland": [
+    "east auckland", "howick", "pakuranga", "botany", "half moon bay", "flat bush", 
+    "clevedon", "dannemora", "highland park", "bucklands beach", "whitford"
+  ],
+  "Waiheke Island": [
+    "waiheke", "oneroa", "onetangi", "surfdale", "ostend", "matiatia"
+  ]
+};
+
+// Map specific location summary to macro region
+function mapToMacroRegion(locationSummary: string): string {
+  if (!locationSummary) return "Unknown";
+  const locLower = locationSummary.toLowerCase();
+
+  for (const [region, keywords] of Object.entries(REGION_MAPPING)) {
+    if (keywords.some(kw => locLower.includes(kw))) {
+      return region;
+    }
+  }
+  return "Unknown"; 
+}
+
 // A utility function to fetch Eventfinda configuration from SSM Parameter Store
 async function getEventfindaConfig() {
   const response = await ssmClient.send(new GetParametersByPathCommand({
@@ -194,6 +238,8 @@ export const handler = async (event: any) => {
       // 7 days TTL (Data automatically disappears)
       const ttl = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); 
       
+      const mappedRegion = mapToMacroRegion(item.location_summary || "");
+
       await docClient.send(new PutCommand({
         TableName: tableName,
         Item: {
@@ -207,7 +253,8 @@ export const handler = async (event: any) => {
           datetime_end: item.datetime_end,
           location_summary: item.location_summary || 'Unknown Location',
           is_free: item.is_free,
-          image_url: cloudfrontUrl
+          image_url: cloudfrontUrl,
+          mapped_region: mappedRegion
         }
       }));
     }
