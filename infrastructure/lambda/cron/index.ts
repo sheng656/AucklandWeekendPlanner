@@ -73,44 +73,69 @@ export const handler = async (event: any) => {
     
     const eventsToStore = [];
     
-    // Date calculation for upcoming weekend
+    // Date calculation for upcoming weekend (Friday to Sunday)
     const today = new Date();
-    const nextSaturday = new Date(today);
-    nextSaturday.setDate(today.getDate() + ((6 - today.getDay() + 7) % 7));
-    const nextSunday = new Date(nextSaturday);
-    nextSunday.setDate(nextSaturday.getDate() + 1);
+    const nextFriday = new Date(today);
+    nextFriday.setDate(today.getDate() + ((5 - today.getDay() + 7) % 7));
+    const nextSunday = new Date(nextFriday);
+    nextSunday.setDate(nextFriday.getDate() + 2);
     
-    const startDateStr = nextSaturday.toISOString().split('T')[0];
+    const startDateStr = nextFriday.toISOString().split('T')[0];
     const endDateStr = nextSunday.toISOString().split('T')[0];
     
     const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,images),image:(transforms),transform:(url,transformation_id)';
     
-    for (let page = 1; page <= 3; page++) {
-      console.log(`Fetching Eventfinda Page ${page}...`);
-      
-      const response = await fetch(`https://api.eventfinda.co.nz/v2/events.json?rows=20&offset=${(page - 1) * 20}&location=${locationId}&start_date=${startDateStr}&end_date=${endDateStr}&fields=${fields}&order=popularity`, {
-        headers: {
-          'Authorization': `Basic ${token}`,
-          'User-Agent': 'AucklandWeekendPlanner/1.0'
+    const allAucklandEvents: any[] = [];
+    let currentOffset = 0;
+    const maxRows = 20;
+    let hasMore = true;
+
+    console.log(`Starting full fetch for Auckland (Location ID: ${locationId}) from ${startDateStr} to ${endDateStr}`);
+
+    while (hasMore) {
+      try {
+        console.log(`Fetching offset ${currentOffset}...`);
+        const response = await fetch(`https://api.eventfinda.co.nz/v2/events.json?rows=${maxRows}&offset=${currentOffset}&location=${locationId}&start_date=${startDateStr}&end_date=${endDateStr}&fields=${fields}&order=popularity`, {
+          headers: {
+            'Authorization': `Basic ${token}`,
+            'User-Agent': 'AucklandWeekendPlanner/1.0'
+          }
+        });
+
+        if (response.ok) {
+          const data: any = await response.json();
+          const fetchedEvents = data.events || [];
+          
+          allAucklandEvents.push(...fetchedEvents);
+          console.log(`Successfully fetched ${fetchedEvents.length} events.`);
+
+          if (fetchedEvents.length < maxRows) {
+            hasMore = false;
+          } else {
+            currentOffset += maxRows;
+          }
+        } else {
+          console.error(`API Error: Status ${response.status} - ${response.statusText}`);
+          if (response.status === 429) {
+            console.log("Hit rate limit, waiting 5 seconds before retrying...");
+            await sleep(5000);
+            continue;
+          }
+          hasMore = false;
         }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Eventfinda fetch failed: ${response.statusText}`);
+      } catch (err) {
+        console.error(`Fetch failed at offset ${currentOffset}:`, err);
+        hasMore = false;
       }
       
-      const data: any = await response.json();
-      eventsToStore.push(...(data.events || []));
-      
-      // Delay to respect 1 req per sec strictly
-      await sleep(1500); 
+      await sleep(2000); 
     }
     
-    console.log(`Successfully fetched ${eventsToStore.length} events. Filtering and processing...`);
+    console.log(`Fetch complete. Total events retrieved: ${allAucklandEvents.length}. Filtering and processing...`);
 
     // Filter out inappropriate content before storing
-    const appropriateEvents = eventsToStore.filter(item => isAppropriateEvent(item));
-    const filteredCount = eventsToStore.length - appropriateEvents.length;
+    const appropriateEvents = allAucklandEvents.filter(item => isAppropriateEvent(item));
+    const filteredCount = allAucklandEvents.length - appropriateEvents.length;
     if (filteredCount > 0) {
       console.log(`Filtered out ${filteredCount} inappropriate events.`);
     }

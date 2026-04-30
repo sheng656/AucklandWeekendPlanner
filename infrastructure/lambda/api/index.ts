@@ -34,13 +34,33 @@ export const handler = async (event: any) => {
       ExpressionAttributeValues: {
         ":pk": "REGION#AUCKLAND"
       },
-      Limit: 20
+      Limit: 100 // Increased limit to allow for filtering
     });
     
     console.log("Querying DynamoDB table:", process.env.TABLE_NAME);
     const eventsData = await docClient.send(query);
     let events = eventsData.Items || [];
     console.log(`Retrieved ${events.length} events from DynamoDB`);
+
+    // Region routing logic via LLM
+    const selectedRegions = Array.isArray(region) ? region : (region ? [region] : []);
+    let regionInstruction = '';
+    if (selectedRegions.length > 0 && selectedRegions.length < 6) {
+      regionInstruction = `
+GEOGRAPHICAL CONSTRAINT (CRITICAL):
+The user ONLY wants to explore the following regions in Auckland: ${selectedRegions.join(', ')}.
+You are an expert on Auckland geography. Review the "Location:" field of the available events. 
+- ONLY select and recommend events that are geographically located within or very close to these specified regions.
+- For example, if the user selects "North Shore", events in Takapuna, Albany, or Devonport are valid.
+- DO NOT recommend events located in regions the user did not select.
+- If there are not enough events in the chosen regions to fill a day, supplement with high-quality general sightseeing activities (e.g., parks, beaches, landmarks) strictly within those regions, rather than pulling events from unwanted regions.
+`;
+    } else {
+      regionInstruction = `
+GEOGRAPHICAL CONSTRAINT:
+The user has not specified a strict region limit. You are free to recommend events from anywhere across the greater Auckland region, but try to group activities geographically to minimize travel time between morning, lunch, and afternoon activities.
+`;
+    }
 
     // Ensure we only process weekend events (Friday, Saturday, Sunday)
     const beforeWeekendCount = events.length;
@@ -69,7 +89,10 @@ export const handler = async (event: any) => {
     const bedrock = new BedrockRuntimeClient({ region: 'ap-southeast-2' });
     
     const eventsContext = events.length > 0 
-      ? `Here are the actual Auckland events available this weekend:\n${events.map((e: any) => `- [ID: ${e.SK.split('#')[2]}] ${e.name}: ${e.description || 'No description'} (${e.datetime_start}) - Location: ${e.location_summary || 'Unknown'} - Free: ${e.is_free ? 'Yes' : 'No'}`).join('\n')}`
+      ? `AVAILABLE AUCKLAND EVENTS THIS WEEKEND:\n` + events.map((e: any) => {
+          const shortDesc = e.description ? e.description.substring(0, 150).replace(/\n/g, ' ') + '...' : 'No description';
+          return `- [ID: ${e.SK.split('#')[2]}] ${e.name} | Time: ${e.datetime_start} | Location: ${e.location_summary || 'Auckland'} | Free: ${e.is_free ? 'Yes' : 'No'} | Desc: ${shortDesc}`;
+        }).join('\n')
       : 'Note: No specific event data is currently available. Please provide general Auckland recommendations.';
 
     // Build audience-specific instructions
@@ -96,8 +119,9 @@ User Preferences:
 - Group Type: ${audience}
 - Budget Level: ${budget}
 - Days: ${tripDays}
-- Region: ${region}
+- Region: ${selectedRegions.join(', ') || region}
 ${audienceInstruction}
+${regionInstruction}
 
 CRITICAL SCHEDULING RULE:
 ${dayInstruction}
@@ -151,7 +175,7 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
     
     // Build Bedrock invocation options
     const invokeParams: any = {
-      modelId: 'anthropic.claude-3-haiku-20240307-v1:0',
+      modelId: 'anthropic.claude-haiku-4-5-20251001-v1:0',
       contentType: 'application/json',
       accept: 'application/json',
       body: JSON.stringify({

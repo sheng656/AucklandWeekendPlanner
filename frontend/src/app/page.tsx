@@ -92,7 +92,7 @@ export default function Home() {
   const [audience, setAudience] = useState<Audience>("Friends");
   const [budget, setBudget] = useState<Budget>("Medium");
   const [tripDays, setTripDays] = useState<TripDays>("Saturday");
-  const [region, setRegion] = useState<Region>("Central Auckland");
+  const [region, setRegion] = useState<Region[]>(["Central Auckland"]);
 
   const [showPreferences, setShowPreferences] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -121,6 +121,16 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  const toggleRegion = (r: Region) => {
+    setRegion((prev) => {
+      if (prev.includes(r)) {
+        if (prev.length === 1) return prev; // Keep at least one
+        return prev.filter((item) => item !== r);
+      }
+      return [...prev, r];
+    });
+  };
+
   const handlePlanWeekend = async () => {
     setIsLoading(true);
     setShowPreferences(false);
@@ -143,7 +153,7 @@ export default function Home() {
           budget,
           tripDays,
           region,
-          query: `Plan a ${tripDays} weekend in ${region} for ${audience} with ${budget} budget.`,
+          query: `Plan a ${tripDays} weekend in ${region.join(", ")} for ${audience} with ${budget} budget.`,
         }),
       });
 
@@ -411,8 +421,8 @@ export default function Home() {
                     {regionOptions.map((o) => (
                       <button
                         key={o}
-                        onClick={() => setRegion(o)}
-                        className={region === o ? choicePillActive : choicePill}
+                        onClick={() => toggleRegion(o)}
+                        className={region.includes(o) ? choicePillActive : choicePill}
                       >
                         {o}
                       </button>
