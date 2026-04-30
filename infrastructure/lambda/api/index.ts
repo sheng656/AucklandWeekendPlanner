@@ -74,13 +74,13 @@ The user is open to exploring any area in Auckland. Try to group activities geog
 `;
     }
 
-    // Ensure we only process weekend events (Friday, Saturday, Sunday)
+    // Ensure we only process weekend events (Saturday, Sunday)
     const beforeWeekendCount = events.length;
     const weekendFilter = (e: any) => {
       if (!e.datetime_start) return false;
       const date = new Date(e.datetime_start);
       const dow = date.getDay();
-      return dow === 0 || dow === 5 || dow === 6; // 0=Sun, 5=Fri, 6=Sat
+      return dow === 0 || dow === 6; // 0=Sun, 6=Sat
     };
     events = events.filter(weekendFilter);
     bedrockEvents = bedrockEvents.filter(weekendFilter);
