@@ -42,6 +42,19 @@ export const handler = async (event: any) => {
     let events = eventsData.Items || [];
     console.log(`Retrieved ${events.length} events from DynamoDB`);
 
+    // Ensure we only process weekend events (Friday, Saturday, Sunday)
+    const beforeWeekendCount = events.length;
+    events = events.filter((e: any) => {
+      if (!e.datetime_start) return false;
+      const date = new Date(e.datetime_start);
+      // getDay() is safe here because Eventfinda datetime_start includes NZ timezone offset
+      const dow = date.getDay();
+      return dow === 0 || dow === 5 || dow === 6; // 0=Sun, 5=Fri, 6=Sat
+    });
+    if (beforeWeekendCount - events.length > 0) {
+      console.log(`Filtered out ${beforeWeekendCount - events.length} non-weekend events`);
+    }
+
     // Family mode: extra keyword filtering on input events
     if (audience === 'Family') {
       const beforeCount = events.length;

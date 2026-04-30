@@ -64,7 +64,7 @@ export class InfrastructureStack extends cdk.Stack {
     const cronLambda = new lambdaNodejs.NodejsFunction(this, 'PreWarmingCron', {
       entry: path.join(__dirname, '../lambda/cron/index.ts'),
       handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.minutes(15), // Slow fetching allows longer execution
       environment: {
         TABLE_NAME: dataTable.tableName,
@@ -95,7 +95,7 @@ export class InfrastructureStack extends cdk.Stack {
     const apiLambda = new lambdaNodejs.NodejsFunction(this, 'ApiHandler', {
       entry: path.join(__dirname, '../lambda/api/index.ts'),
       handler: 'handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.seconds(30),
       environment: {
         TABLE_NAME: dataTable.tableName,

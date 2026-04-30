@@ -83,14 +83,15 @@ export const handler = async (event: any) => {
     const startDateStr = nextSaturday.toISOString().split('T')[0];
     const endDateStr = nextSunday.toISOString().split('T')[0];
     
-    const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,images)';
+    const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,images),image:(transforms),transform:(url,transformation_id)';
     
     for (let page = 1; page <= 3; page++) {
       console.log(`Fetching Eventfinda Page ${page}...`);
       
       const response = await fetch(`https://api.eventfinda.co.nz/v2/events.json?rows=20&offset=${(page - 1) * 20}&location=${locationId}&start_date=${startDateStr}&end_date=${endDateStr}&fields=${fields}&order=popularity`, {
         headers: {
-          'Authorization': `Basic ${token}`
+          'Authorization': `Basic ${token}`,
+          'User-Agent': 'AucklandWeekendPlanner/1.0'
         }
       });
       
@@ -118,39 +119,26 @@ export const handler = async (event: any) => {
     
     for (const item of appropriateEvents) {
       let cloudfrontUrl = '';
-      
-      // Robustly extract the images array
-      let images: any[] = [];
-      if (item.images) {
-        if (Array.isArray(item.images)) {
-          images = item.images;
-        } else if (typeof item.images === 'object') {
-          const nested = item.images.image || item.images;
-          images = Array.isArray(nested) ? nested : [nested];
+      let originalImageUrl = "";
+
+      if (item.images && item.images.images) {
+        const imageList = Array.isArray(item.images.images) ? item.images.images : [item.images.images];
+        const firstImage = imageList[0];
+
+        if (firstImage && firstImage.transforms && firstImage.transforms.transforms) {
+          const transforms = Array.isArray(firstImage.transforms.transforms) 
+            ? firstImage.transforms.transforms 
+            : [firstImage.transforms.transforms];
+
+          const targetTransform = transforms.find((t: any) => t && (t.transformation_id === 7 || t.transformation_id === 27)) 
+                                  || transforms[0];
+          
+          originalImageUrl = targetTransform?.url || "";
         }
       }
 
-      if (images.length > 0 && images[0]) {
-        const firstImage = images[0];
-        const transforms = firstImage.transforms || {};
-        
-        let originalImageUrl = '';
-        // Check for common transform structures
-        if (transforms.medium?.url) {
-          originalImageUrl = transforms.medium.url;
-        } else if (Array.isArray(transforms.transforms)) {
-          const mediumT = transforms.transforms.find((t: any) => t.id === 'medium');
-          originalImageUrl = mediumT?.url || '';
-        } else if (typeof transforms === 'object') {
-          // Some structures might have transforms.transform as an array or object
-          const transList = transforms.transform || transforms.transforms;
-          const list = Array.isArray(transList) ? transList : [transList];
-          const mediumT = list.find((t: any) => t && (t.id === 'medium' || t.name === 'medium'));
-          originalImageUrl = mediumT?.url || firstImage.url || '';
-        }
-
-        if (originalImageUrl) {
-          try {
+      if (originalImageUrl) {
+        try {
             console.log(`Processing event ${item.id}: Downloading from ${originalImageUrl}`);
             const imgResponse = await fetch(originalImageUrl, {
               headers: { 'User-Agent': 'Mozilla/5.0 (AucklandWeekendPlanner/1.0)' }
@@ -177,7 +165,6 @@ export const handler = async (event: any) => {
           }
           await sleep(1200); 
         }
-      }
 
       // 7 days TTL (Data automatically disappears)
       const ttl = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); 
