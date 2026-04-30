@@ -8,6 +8,18 @@ const docClient = DynamoDBDocumentClient.from(ddbClient);
 const ssmClient = new SSMClient({});
 const s3Client = new S3Client({});
 
+// Adult content keywords for pre-filtering inappropriate events
+const ADULT_KEYWORDS = [
+  'revue', 'strip', 'burlesque', '18+', 'r18',
+  'adults only', 'adult only', 'male revue', 'female revue',
+  'exotic dance', 'gentleman', 'lingerie', 'erotic'
+];
+
+function isAppropriateEvent(event: { name: string; description?: string }): boolean {
+  const text = `${event.name || ''} ${event.description || ''}`.toLowerCase();
+  return !ADULT_KEYWORDS.some(kw => text.includes(kw));
+}
+
 // A utility function to fetch Eventfinda configuration from SSM Parameter Store
 async function getEventfindaConfig() {
   const response = await ssmClient.send(new GetParametersByPathCommand({
@@ -93,36 +105,78 @@ export const handler = async (event: any) => {
       await sleep(1500); 
     }
     
-    console.log(`Successfully fetched ${eventsToStore.length} events. Processing images and storing to DynamoDB...`);
+    console.log(`Successfully fetched ${eventsToStore.length} events. Filtering and processing...`);
+
+    // Filter out inappropriate content before storing
+    const appropriateEvents = eventsToStore.filter(item => isAppropriateEvent(item));
+    const filteredCount = eventsToStore.length - appropriateEvents.length;
+    if (filteredCount > 0) {
+      console.log(`Filtered out ${filteredCount} inappropriate events.`);
+    }
+
     const tableName = process.env.TABLE_NAME;
     
-    for (const item of eventsToStore) {
+    for (const item of appropriateEvents) {
       let cloudfrontUrl = '';
       
-      if (item.images && item.images.length > 0 && item.images[0].transforms?.medium?.url) {
-         const originalImageUrl = item.images[0].transforms.medium.url;
-         try {
-           console.log(`Downloading image for event ${item.id}...`);
-           const imgResponse = await fetch(originalImageUrl);
-           if (imgResponse.ok) {
-             const arrayBuffer = await imgResponse.arrayBuffer();
-             const buffer = Buffer.from(arrayBuffer);
-             
-             const objectKey = `events/${item.id}.jpg`;
-             
-             await s3Client.send(new PutObjectCommand({
-               Bucket: imageBucketName,
-               Key: objectKey,
-               Body: buffer,
-               ContentType: 'image/jpeg',
-             }));
-             
-             cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
-           }
-         } catch (err) {
-           console.error(`Failed to process image for event ${item.id}`, err);
-         }
-         await sleep(1000); // Sleep to avoid hitting Eventfinda CDN too hard
+      // Robustly extract the images array
+      let images: any[] = [];
+      if (item.images) {
+        if (Array.isArray(item.images)) {
+          images = item.images;
+        } else if (typeof item.images === 'object') {
+          const nested = item.images.image || item.images;
+          images = Array.isArray(nested) ? nested : [nested];
+        }
+      }
+
+      if (images.length > 0 && images[0]) {
+        const firstImage = images[0];
+        const transforms = firstImage.transforms || {};
+        
+        let originalImageUrl = '';
+        // Check for common transform structures
+        if (transforms.medium?.url) {
+          originalImageUrl = transforms.medium.url;
+        } else if (Array.isArray(transforms.transforms)) {
+          const mediumT = transforms.transforms.find((t: any) => t.id === 'medium');
+          originalImageUrl = mediumT?.url || '';
+        } else if (typeof transforms === 'object') {
+          // Some structures might have transforms.transform as an array or object
+          const transList = transforms.transform || transforms.transforms;
+          const list = Array.isArray(transList) ? transList : [transList];
+          const mediumT = list.find((t: any) => t && (t.id === 'medium' || t.name === 'medium'));
+          originalImageUrl = mediumT?.url || firstImage.url || '';
+        }
+
+        if (originalImageUrl) {
+          try {
+            console.log(`Processing event ${item.id}: Downloading from ${originalImageUrl}`);
+            const imgResponse = await fetch(originalImageUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (AucklandWeekendPlanner/1.0)' }
+            });
+            
+            if (imgResponse.ok) {
+              const arrayBuffer = await imgResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              const objectKey = `events/${item.id}.jpg`;
+              
+              await s3Client.send(new PutObjectCommand({
+                Bucket: imageBucketName,
+                Key: objectKey,
+                Body: buffer,
+                ContentType: 'image/jpeg',
+              }));
+              
+              cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
+            } else {
+              console.error(`Download failed for ${item.id}: ${imgResponse.status}`);
+            }
+          } catch (err) {
+            console.error(`Error processing image for ${item.id}:`, err);
+          }
+          await sleep(1200); 
+        }
       }
 
       // 7 days TTL (Data automatically disappears)

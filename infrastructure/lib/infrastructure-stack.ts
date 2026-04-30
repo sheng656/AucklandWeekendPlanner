@@ -11,6 +11,7 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as bedrock from 'aws-cdk-lib/aws-bedrock';
 import * as path from 'path';
 
 export class InfrastructureStack extends cdk.Stack {
@@ -40,6 +41,22 @@ export class InfrastructureStack extends cdk.Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
         cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+      },
+    });
+
+    // 1.6 Bedrock Guardrails for content filtering
+    const guardrail = new bedrock.CfnGuardrail(this, 'ContentGuardrail', {
+      name: 'auckland-planner-guardrail',
+      blockedInputMessaging: 'This request has been blocked by our content policy. Please try a different query.',
+      blockedOutputsMessaging: 'This response has been blocked by our content policy. Please try again.',
+      contentPolicyConfig: {
+        filtersConfig: [
+          { type: 'SEXUAL', inputStrength: 'HIGH', outputStrength: 'HIGH' },
+          { type: 'VIOLENCE', inputStrength: 'MEDIUM', outputStrength: 'MEDIUM' },
+          { type: 'HATE', inputStrength: 'HIGH', outputStrength: 'HIGH' },
+          { type: 'INSULTS', inputStrength: 'MEDIUM', outputStrength: 'MEDIUM' },
+          { type: 'MISCONDUCT', inputStrength: 'MEDIUM', outputStrength: 'MEDIUM' },
+        ],
       },
     });
 
@@ -84,6 +101,8 @@ export class InfrastructureStack extends cdk.Stack {
         TABLE_NAME: dataTable.tableName,
         SSM_PATH: '/AucklandPlanner/Config',
         CLOUDFRONT_DOMAIN: distribution.distributionDomainName,
+        GUARDRAIL_ID: guardrail.attrGuardrailId,
+        GUARDRAIL_VERSION: guardrail.attrVersion,
       }
     });
 
@@ -96,7 +115,7 @@ export class InfrastructureStack extends cdk.Stack {
 
     // Bedrock Access (Streaming support requires InvokeModelWithResponseStream)
     apiLambda.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+      actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream', 'bedrock:ApplyGuardrail'],
       resources: ['*'], // Specify model ARN safely in prod
     }));
 
@@ -123,6 +142,11 @@ export class InfrastructureStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ApiV2Url', {
       value: api.url ?? '',
       description: 'API Gateway Endpoint V2',
+    });
+
+    new cdk.CfnOutput(this, 'GuardrailId', {
+      value: guardrail.attrGuardrailId,
+      description: 'Bedrock Guardrail ID',
     });
   }
 }

@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f5f7;
+  --background: #f0f4f8;
   --foreground: #171717;
   
-  /* Dopamine Blue-Based Palette */
-  --dopamine-mint: #22d3ee;        /* Cyan 400 */
-  --dopamine-coral: #0ea5e9;       /* Sky Blue 500 */
-  --dopamine-yellow: #fde047;      /* Yellow 300 - kept for contrast */
-  --dopamine-blue: #38bdf8;        /* Sky Blue 400 */
+  /* Refined Blue-Based Palette */
+  --dopamine-mint: #22d3ee;
+  --dopamine-coral: #0ea5e9;
+  --dopamine-yellow: #fde047;
+  --dopamine-blue: #38bdf8;
   
   /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.4);
-  --glass-border: rgba(255, 255, 255, 0.6);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
 }
 
 @theme inline {
@@ -30,7 +30,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a; /* Slate 900 */
+    --background: #0f172a;
     --foreground: #f8fafc;
     --glass-bg: rgba(15, 23, 42, 0.5);
     --glass-border: rgba(255, 255, 255, 0.1);
@@ -44,37 +44,33 @@ body {
   overflow-x: hidden;
 }
 
-/* Mesh Gradient Background base using fresh Blues and Cyans */
+/* ===== Mesh Gradient Background ===== */
 .mesh-bg {
   background-color: var(--background);
   background-image: 
-    radial-gradient(at 40% 20%, hsla(190, 100%, 75%, 0.4) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, hsla(210, 100%, 75%, 0.4) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, hsla(170, 90%, 75%, 0.4) 0px, transparent 50%);
+    radial-gradient(at 20% 10%, hsla(200, 100%, 85%, 0.5) 0px, transparent 50%),
+    radial-gradient(at 80% 5%, hsla(220, 100%, 85%, 0.4) 0px, transparent 50%),
+    radial-gradient(at 0% 60%, hsla(180, 80%, 85%, 0.3) 0px, transparent 50%),
+    radial-gradient(at 100% 80%, hsla(240, 60%, 90%, 0.3) 0px, transparent 50%);
   background-attachment: fixed;
   background-size: cover;
 }
 
-/* Glassmorphism Utilities */
+/* ===== Glassmorphism Panel ===== */
 .glass-panel {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
-  border-radius: 1.5rem;
+  border-radius: 1.25rem;
   box-shadow: var(--glass-shadow);
 }
 
-/* Hide scrollbar for carousel */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* ===== Hide Scrollbar ===== */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Shimmer Animation */
+/* ===== Shimmer Animation ===== */
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
@@ -89,4 +85,389 @@ body {
   );
   background-size: 200% 100%;
   animation: shimmer 2s infinite linear;
+}
+
+/* ===== Weather Widget ===== */
+.weather-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.weather-pill:hover {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.weather-forecast-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 1rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+  min-width: 380px;
+}
+
+.weather-day-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.75rem;
+  flex: 1;
+  min-width: 60px;
+  transition: background 0.2s;
+}
+
+.weather-day-card:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.weather-day-weekend {
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.weather-day-weekend:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* ===== Day Timeline ===== */
+.day-timeline {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+}
+
+.day-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.04), rgba(34, 211, 238, 0.04));
+}
+
+.day-timeline-body {
+  padding: 1rem 1.5rem;
+}
+
+.day-timeline-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.01);
+}
+
+/* ===== Timeline Slots & Connector ===== */
+.timeline-slot {
+  display: flex;
+  gap: 1rem;
+  min-height: 80px;
+}
+
+.timeline-period {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 90px;
+  flex-shrink: 0;
+  padding-top: 0.5rem;
+}
+
+.timeline-period-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+  white-space: nowrap;
+}
+
+.timeline-connector {
+  width: 2px;
+  flex: 1;
+  margin: 0.5rem 0;
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05));
+  border-radius: 1px;
+}
+
+.timeline-activities {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+  min-width: 0;
+}
+
+/* ===== Timeline Card ===== */
+.timeline-card {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 0.875rem;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.timeline-card:hover {
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08);
+  transform: translateY(-1px);
+}
+
+.timeline-card-swapping {
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 4px 16px rgba(59, 130, 246, 0.12) !important;
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(59, 130, 246, 0.4); }
+  50% { border-color: rgba(59, 130, 246, 0.7); }
+}
+
+.timeline-card-image {
+  height: 120px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #e0f2fe, #cffafe);
+}
+
+.swap-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 0.5rem;
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.swap-button:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  transform: scale(1.05);
+}
+
+/* ===== More Events Section ===== */
+.more-events-section {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 1.25rem;
+  overflow: hidden;
+}
+
+.more-events-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  background: transparent;
+  border: none;
+}
+
+.more-events-toggle:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.more-events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.more-event-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.more-event-card:hover {
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.more-event-image {
+  height: 80px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.use-this-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.use-this-button:hover {
+  filter: brightness(1.1);
+  transform: scale(1.03);
+}
+
+/* ===== Export Buttons ===== */
+.export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+}
+
+.export-button:hover {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+/* ===== Choice Pills (Preference Selector) ===== */
+.choice-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #52525b !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.choice-pill:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.choice-pill-active {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(59, 130, 246, 0.5) !important;
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: white !important;
+  box-shadow: 0 3px 12px rgba(59, 130, 246, 0.3);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+/* ===== Preference Card ===== */
+.preference-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.4);
+  padding: 1.125rem;
+  transition: box-shadow 0.2s;
+}
+
+.preference-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* ===== Weather Hint (inline with When? options) ===== */
+.weather-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-left: 0.375rem;
+  font-size: 0.6875rem;
+  color: #9ca3af;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.weather-hint img {
+  width: 24px;
+  height: 24px;
+  margin: -4px -2px;
+  opacity: 0.85;
+}
+
+/* ===== Loading Skeleton ===== */
+.skeleton-card {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  padding: 1.5rem;
+}
+
+.skeleton-bar {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+  .timeline-period {
+    width: 72px;
+  }
+  
+  .weather-forecast-panel {
+    min-width: 320px;
+    right: -2rem;
+  }
+  
+  .more-events-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
 }
