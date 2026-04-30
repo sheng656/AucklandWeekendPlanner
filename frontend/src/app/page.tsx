@@ -49,6 +49,7 @@ interface Activity {
   description: string;
   location: string;
   eventId: string | null;
+  isEmptyPlaceholder?: boolean;
 }
 
 interface TimeSlot {
@@ -182,6 +183,37 @@ export default function Home() {
     setMoreEventsOpen(false);
   };
 
+  const handleRemoveActivity = (dayIdx: number, slotIdx: number, actIdx: number) => {
+    if (!itinerary) return;
+    const newPlan = [...itinerary];
+    const slot = newPlan[dayIdx]?.timeSlots[slotIdx];
+    if (!slot) return;
+    
+    const removedEventId = slot.activities[actIdx].eventId;
+    
+    // Convert to a placeholder
+    slot.activities[actIdx] = {
+      title: "Available Slot",
+      time: slot.activities[actIdx].time,
+      cost: "",
+      description: "Click here to add an event from the Explore More section.",
+      location: "",
+      eventId: null,
+      isEmptyPlaceholder: true,
+    };
+
+    if (removedEventId) {
+      // Move from recommended to other
+      const eventToMove = recommendedEvents.find((e) => String(e.id) === String(removedEventId));
+      if (eventToMove) {
+        setRecommendedEvents((prev) => prev.filter((e) => String(e.id) !== String(removedEventId)));
+        setOtherEvents((prev) => [...prev, eventToMove]);
+      }
+    }
+    
+    setItinerary(newPlan);
+  };
+
   const handleSwapClick = (dayIdx: number, slotIdx: number, actIdx: number) => {
     if (
       swappingSlot?.dayIdx === dayIdx &&
@@ -238,6 +270,25 @@ export default function Home() {
       temp: `${target.temp_min}–${target.temp_max}°C`,
     };
   }
+
+  // Filter events based on active swap slot
+  const displayEvents = (() => {
+    if (!swappingSlot || !itinerary) return otherEvents;
+    const period = itinerary[swappingSlot.dayIdx]?.timeSlots[swappingSlot.slotIdx]?.period;
+    if (!period) return otherEvents;
+
+    return otherEvents.filter((e) => {
+      if (!e.datetime_start) return true;
+      const hour = new Date(e.datetime_start).getHours();
+      switch (period) {
+        case "Morning": return hour >= 5 && hour < 12;
+        case "Lunch": return hour >= 11 && hour < 15;
+        case "Afternoon": return hour >= 12 && hour < 18;
+        case "Evening": return hour >= 17 || hour < 5;
+        default: return true;
+      }
+    });
+  })();
 
   const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
 
@@ -429,13 +480,14 @@ export default function Home() {
                         recommendedEvents={recommendedEvents}
                         swappingSlot={swappingSlot}
                         onSwapClick={handleSwapClick}
+                        onRemoveClick={handleRemoveActivity}
                       />
                     );
                   })}
 
                   {/* More Events */}
                   <MoreEvents
-                    events={otherEvents}
+                    events={displayEvents}
                     isOpen={moreEventsOpen}
                     onToggle={() => setMoreEventsOpen(!moreEventsOpen)}
                     swappingActive={swappingSlot !== null}

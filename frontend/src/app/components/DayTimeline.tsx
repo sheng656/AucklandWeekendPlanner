@@ -37,6 +37,7 @@ interface DayTimelineProps {
   recommendedEvents: EventData[];
   swappingSlot: { dayIdx: number; slotIdx: number; actIdx: number } | null;
   onSwapClick: (dayIdx: number, slotIdx: number, actIdx: number) => void;
+  onRemoveClick: (dayIdx: number, slotIdx: number, actIdx: number) => void;
 }
 
 const periodIcons: Record<string, React.ReactNode> = {
@@ -61,6 +62,7 @@ export default function DayTimeline({
   recommendedEvents,
   swappingSlot,
   onSwapClick,
+  onRemoveClick,
 }: DayTimelineProps) {
   function findEventData(eventId: string | null): EventData | undefined {
     if (!eventId || eventId === "null") return undefined;
@@ -122,6 +124,7 @@ export default function DayTimeline({
                     eventData={eventData}
                     isSwapping={isSwapping}
                     onSwapClick={() => onSwapClick(dayIndex, slotIdx, actIdx)}
+                    onRemoveClick={() => onRemoveClick(dayIndex, slotIdx, actIdx)}
                   />
                 );
               })}

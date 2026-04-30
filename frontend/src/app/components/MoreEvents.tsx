@@ -78,25 +78,19 @@ export default function MoreEvents({
                   transition={{ delay: idx * 0.05 }}
                   className="more-event-card"
                 >
-                  {event.image_url ? (
-                    <div className="more-event-image">
-                      <img src={event.image_url} alt={event.name} className="w-full h-full object-cover" />
-                      {event.is_free && (
-                        <span className="absolute top-1.5 left-1.5 bg-emerald-400 text-zinc-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                          FREE
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="more-event-image bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center">
-                      <Calendar className="w-6 h-6 text-blue-300" />
-                      {event.is_free && (
-                        <span className="absolute top-1.5 left-1.5 bg-emerald-400 text-zinc-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                          FREE
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="more-event-image overflow-hidden relative group">
+                    <img 
+                      src={event.image_url || `https://picsum.photos/seed/${event.id || event.name.replace(/\s+/g, '')}/800/450`} 
+                      alt={event.name} 
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                      referrerPolicy="no-referrer"
+                    />
+                    {event.is_free && (
+                      <span className="absolute top-1.5 left-1.5 bg-emerald-400 text-zinc-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10 shadow-sm">
+                        FREE
+                      </span>
+                    )}
+                  </div>
 
                   <div className="p-3 flex flex-col gap-1.5 flex-1">
                     <h5 className="text-xs font-bold text-zinc-700 line-clamp-2 leading-snug">
