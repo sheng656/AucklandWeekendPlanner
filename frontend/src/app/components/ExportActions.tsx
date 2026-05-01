@@ -218,6 +218,7 @@ function generateShareText(plan: DayPlan[]): string {
     text += `📅 ${day.dayName}, ${day.date}\n`;
     for (const slot of day.timeSlots) {
       for (const act of slot.activities) {
+        if ((act as any).isEmptyPlaceholder) continue;
         text += `  • ${act.title} (${act.time}) — ${act.location}\n`;
       }
     }
