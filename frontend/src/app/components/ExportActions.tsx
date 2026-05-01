@@ -24,22 +24,21 @@ interface ExportActionsProps {
   plan: DayPlan[];
 }
 
-function formatICSDate(dateStr: string, timeStr: string): string {
-  // Parse date like "May 3" + time like "9:00 AM"
+function buildDateFromParts(dateStr: string, timeStr: string): Date {
+  // Build a Date from pieces like "May 3" and "9:00 AM" using local timezone
   const now = new Date();
   const year = now.getFullYear();
-  
-  // Try to parse the date
+
   const fullDateStr = `${dateStr} ${year}`;
   const baseDate = new Date(fullDateStr);
-  
+
   if (isNaN(baseDate.getTime())) {
-    // Fallback: use next weekend
+    // Fallback: use next weekend (Saturday)
     const today = new Date();
     const daysToSat = (6 - today.getDay() + 7) % 7;
     baseDate.setTime(today.getTime() + daysToSat * 86400000);
   }
-  
+
   // Parse time like "9:00 AM" or "2:30 PM"
   const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (timeMatch) {
@@ -50,17 +49,67 @@ function formatICSDate(dateStr: string, timeStr: string): string {
     if (ampm === "AM" && hours === 12) hours = 0;
     baseDate.setHours(hours, minutes, 0, 0);
   }
-  
-  // Format as ICS date: YYYYMMDDTHHMMSS (local time)
+
+  return baseDate;
+}
+
+function formatDateToICS(date: Date): string {
+  // Format as ICS date in UTC: YYYYMMDDTHHMMSSZ
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${baseDate.getFullYear()}${pad(baseDate.getMonth() + 1)}${pad(baseDate.getDate())}T${pad(baseDate.getHours())}${pad(baseDate.getMinutes())}00`;
+  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
 }
 
 function escapeICS(str: string): string {
-  return str.replace(/[\\;,\n]/g, (match) => {
+  if (!str) return "";
+
+  let plainText = str;
+
+  // 1) In browser, parse as HTML to strip tags and decode entities
+  if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(str, "text/html");
+      plainText = doc.body.textContent || "";
+    } catch (e) {
+      // fallback to regex stripping
+      plainText = str.replace(/<\/?[^>]+(>|$)/g, "");
+    }
+  } else {
+    // SSR or no DOMParser available: simple regex strip
+    plainText = str.replace(/<\/?[^>]+(>|$)/g, "");
+  }
+
+  // 2) Normalize CRLF and lone CR to LF
+  plainText = plainText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // 3) Escape ICS reserved characters (\, ;, ,, and newlines)
+  return plainText.replace(/[\\;,\n]/g, (match) => {
     if (match === "\n") return "\\n";
     return "\\" + match;
   });
+}
+
+function foldICSLine(line: string): string {
+  // Fold long lines to <=75 bytes using UTF-8 byte length, inserting CRLF + space
+  const encoder = new TextEncoder();
+  let res = "";
+  let i = 0;
+  while (i < line.length) {
+    let j = i;
+    let bytes = 0;
+    while (j < line.length) {
+      const ch = line[j];
+      const b = encoder.encode(ch).length;
+      if (bytes + b > 75) break;
+      bytes += b;
+      j++;
+    }
+    // Append slice
+    res += line.slice(i, j);
+    i = j;
+    if (i < line.length) res += "\r\n ";
+  }
+  return res;
 }
 
 function generateICS(plan: DayPlan[]): string {
@@ -80,19 +129,39 @@ function generateICS(plan: DayPlan[]): string {
         const startTime = timeParts[0]?.trim() || "9:00 AM";
         const endTime = timeParts[1]?.trim() || "10:00 AM";
 
-        const dtStart = formatICSDate(day.date, startTime);
-        const dtEnd = formatICSDate(day.date, endTime);
+        const startDate = buildDateFromParts(day.date, startTime);
+        let endDate = buildDateFromParts(day.date, endTime);
+        // If end is not after start, set end to start + 2 hours
+        if (endDate.getTime() <= startDate.getTime()) {
+          endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+        }
+        const dtStart = formatDateToICS(startDate);
+        const dtEnd = formatDateToICS(endDate);
+        const dtStamp = (() => {
+          const now = new Date();
+          const pad = (n: number) => String(n).padStart(2, "0");
+          return `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
+        })();
 
-        ics += [
+        const uid = activity.eventId
+          ? `${activity.eventId}@aucklandplanner`
+          : `${dtStart}-${Math.random().toString(36).slice(2, 8)}@aucklandplanner`;
+
+        const veventLines = [
           "BEGIN:VEVENT",
+          `UID:${uid}`,
+          `DTSTAMP:${dtStamp}`,
           `DTSTART:${dtStart}`,
           `DTEND:${dtEnd}`,
-          `SUMMARY:${escapeICS(activity.title)}`,
-          `LOCATION:${escapeICS(activity.location)}`,
-          `DESCRIPTION:${escapeICS(activity.description)}${activity.cost ? " (Cost: " + activity.cost + ")" : ""}`,
-          `UID:${dtStart}-${Math.random().toString(36).slice(2, 8)}@aucklandplanner`,
+          `SUMMARY:${escapeICS(activity.title || "")}`,
+          `LOCATION:${escapeICS(activity.location || "")}`,
+          `DESCRIPTION:${escapeICS((activity.description || "") + (activity.cost ? " (Cost: " + activity.cost + ")" : ""))}`,
           "END:VEVENT",
-        ].join("\r\n") + "\r\n";
+        ];
+
+        for (const line of veventLines) {
+          ics += foldICSLine(line) + "\r\n";
+        }
       }
     }
   }
