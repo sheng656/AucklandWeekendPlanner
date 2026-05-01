@@ -98,6 +98,36 @@ The user is open to exploring any area in Auckland. Try to group activities geog
         console.log(`Family mode: filtered out ${filtered} inappropriate events`);
       }
     }
+
+    // Calculate this weekend's actual dates
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    let saturdayDate: Date, sundayDate: Date;
+    
+    if (dayOfWeek === 6) {
+      // Today is Saturday
+      saturdayDate = new Date(today);
+      sundayDate = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    } else if (dayOfWeek === 0) {
+      // Today is Sunday; next weekend is Sat/Sun
+      saturdayDate = new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000);
+      sundayDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    } else {
+      // Mon-Fri: this Saturday & Sunday
+      const daysToSaturday = (6 - dayOfWeek + 7) % 7;
+      saturdayDate = new Date(today.getTime() + daysToSaturday * 24 * 60 * 60 * 1000);
+      sundayDate = new Date(saturdayDate.getTime() + 24 * 60 * 60 * 1000);
+    }
+    
+    const formatDateString = (date: Date) => {
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      return `${months[date.getMonth()]} ${date.getDate()}`;
+    };
+    
+    const saturdayStr = formatDateString(saturdayDate);
+    const sundayStr = formatDateString(sundayDate);
+    
+    console.log(`Calculated weekend dates: Saturday=${saturdayStr}, Sunday=${sundayStr}`);
     
     // 2. Call Bedrock for AI response
     const bedrock = new BedrockRuntimeClient({ region: 'ap-southeast-2' });
@@ -119,11 +149,11 @@ The user is open to exploring any area in Auckland. Try to group activities geog
     // Build tripDays constraint
     let dayInstruction = '';
     if (tripDays === 'Saturday') {
-      dayInstruction = 'Create a plan for SATURDAY ONLY. Do NOT include Sunday. The "days" array must contain exactly ONE entry for Saturday.';
+      dayInstruction = `Create a plan for SATURDAY ONLY (${saturdayStr}). Do NOT include Sunday. The "days" array must contain exactly ONE entry for Saturday. Use date "${saturdayStr}" in the JSON.`;
     } else if (tripDays === 'Sunday') {
-      dayInstruction = 'Create a plan for SUNDAY ONLY. Do NOT include Saturday. The "days" array must contain exactly ONE entry for Sunday.';
+      dayInstruction = `Create a plan for SUNDAY ONLY (${sundayStr}). Do NOT include Saturday. The "days" array must contain exactly ONE entry for Sunday. Use date "${sundayStr}" in the JSON.`;
     } else {
-      dayInstruction = 'Create a full Saturday + Sunday plan. The "days" array must contain TWO entries.';
+      dayInstruction = `Create a full Saturday + Sunday plan. The "days" array must contain TWO entries:\n- First entry for Saturday with date "${saturdayStr}"\n- Second entry for Sunday with date "${sundayStr}"`;
     }
     
     const prompt = `You are an experienced Auckland weekend planner AI assistant. Your task is to create a detailed, personalized weekend itinerary.
@@ -153,7 +183,7 @@ OUTPUT FORMAT - You MUST respond with ONLY a valid JSON object (no markdown, no 
   "days": [
     {
       "dayName": "Saturday",
-      "date": "the actual date string, e.g. May 3",
+      "date": "${saturdayStr}",
       "timeSlots": [
         {
           "period": "Morning",
