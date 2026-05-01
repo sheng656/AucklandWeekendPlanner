@@ -15,6 +15,7 @@ interface DayPlan {
       description: string;
       location: string;
       eventId: string | null;
+      isEmptyPlaceholder?: boolean;
     }[];
   }[];
   estimatedTotal: string;
@@ -25,25 +26,64 @@ interface ExportActionsProps {
 }
 
 function buildDateFromParts(dateStr: string, timeStr: string): Date {
-  // Build a Date from pieces like "May 3" and "9:00 AM" using local timezone
+  // More robust parsing for inputs like "May 3", "3 May", "Mar 14", or keywords like "tomorrow"
   const now = new Date();
   const year = now.getFullYear();
 
-  const fullDateStr = `${dateStr} ${year}`;
-  const baseDate = new Date(fullDateStr);
+  // Normalize whitespace
+  const s = (dateStr || "").trim();
 
-  if (isNaN(baseDate.getTime())) {
-    // Fallback: use next weekend (Saturday)
-    const today = new Date();
-    const daysToSat = (6 - today.getDay() + 7) % 7;
-    baseDate.setTime(today.getTime() + daysToSat * 86400000);
+  // Month name map
+  const months: Record<string, number> = {
+    january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+    july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+    jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11
+  };
+
+  let baseDate: Date | null = null;
+
+  // 1) Keywords
+  if (/^tomorrow$/i.test(s)) {
+    baseDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  } else if (/^today$/i.test(s)) {
+    baseDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else {
+    // 2) Try patterns like "May 3" or "3 May"
+    const m1 = s.match(/([A-Za-z]+)\s+(\d{1,2})/);
+    const m2 = s.match(/(\d{1,2})\s+([A-Za-z]+)/);
+    if (m1) {
+      const mon = m1[1].toLowerCase();
+      const dayNum = parseInt(m1[2], 10);
+      if (months.hasOwnProperty(mon) && dayNum >= 1 && dayNum <= 31) {
+        baseDate = new Date(year, months[mon], dayNum);
+      }
+    } else if (m2) {
+      const dayNum = parseInt(m2[1], 10);
+      const mon = m2[2].toLowerCase();
+      if (months.hasOwnProperty(mon) && dayNum >= 1 && dayNum <= 31) {
+        baseDate = new Date(year, months[mon], dayNum);
+      }
+    }
   }
 
-  // Parse time like "9:00 AM" or "2:30 PM"
+  // 3) Fallback to loose Date parsing if still null
+  if (!baseDate) {
+    const parsed = new Date(`${s} ${year}`);
+    if (!isNaN(parsed.getTime())) baseDate = parsed;
+  }
+
+  // 4) Final fallback: next Saturday
+  if (!baseDate || isNaN(baseDate.getTime())) {
+    const today = new Date();
+    const daysToSat = (6 - today.getDay() + 7) % 7;
+    baseDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToSat);
+  }
+
+  // Parse time like "9:00 AM" or "2:30 PM" and set hours
   const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (timeMatch) {
-    let hours = parseInt(timeMatch[1]);
-    const minutes = parseInt(timeMatch[2]);
+    let hours = parseInt(timeMatch[1], 10);
+    const minutes = parseInt(timeMatch[2], 10);
     const ampm = timeMatch[3].toUpperCase();
     if (ampm === "PM" && hours !== 12) hours += 12;
     if (ampm === "AM" && hours === 12) hours = 0;
@@ -124,6 +164,8 @@ function generateICS(plan: DayPlan[]): string {
   for (const day of plan) {
     for (const slot of day.timeSlots) {
       for (const activity of slot.activities) {
+        // Skip placeholder/empty slots (user-removed items)
+        if ((activity as any).isEmptyPlaceholder) continue;
         // Parse time range "9:00 AM – 11:00 AM"
         const timeParts = activity.time.split(/\s*[–—-]\s*/);
         const startTime = timeParts[0]?.trim() || "9:00 AM";
