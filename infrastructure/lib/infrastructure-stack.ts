@@ -128,7 +128,7 @@ export class InfrastructureStack extends cdk.Stack {
           apigatewayv2.CorsHttpMethod.POST,
           apigatewayv2.CorsHttpMethod.OPTIONS,
         ],
-        allowOrigins: ['*'],
+        allowOrigins: ['https://weekend.sheng.nz'],
       },
     });
 
