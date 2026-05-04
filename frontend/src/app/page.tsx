@@ -15,6 +15,7 @@ import WeatherWidget, { getWeatherHint, weatherEmoji } from "./components/Weathe
 import DayTimeline from "./components/DayTimeline";
 import MoreEvents from "./components/MoreEvents";
 import ExportActions from "./components/ExportActions";
+import { trackGenerateItinerary } from "../lib/gtag";
 
 type Audience = "Couples" | "Friends" | "Family" | "Solo";
 type Budget = "Free" | "Low" | "Medium" | "High";
@@ -132,6 +133,7 @@ export default function Home() {
   };
 
   const handlePlanWeekend = async () => {
+    trackGenerateItinerary(region.join(", "));
     setIsLoading(true);
     setShowPreferences(false);
     setItinerary(null);

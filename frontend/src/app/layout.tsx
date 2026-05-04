@@ -39,7 +39,9 @@ export default function RootLayout({
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
 
-            gtag('config', 'G-0L78LPK5DK');
+            gtag('config', 'G-0L78LPK5DK', {
+              project_id: 'weekend_planner'
+            });
           `}
         </Script>
       </head>
