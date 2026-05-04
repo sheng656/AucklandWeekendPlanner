@@ -232,11 +232,7 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
       })
     };
 
-    // Apply Bedrock Guardrails if configured
-    if (process.env.GUARDRAIL_ID && process.env.GUARDRAIL_VERSION) {
-      invokeParams.guardrailIdentifier = process.env.GUARDRAIL_ID;
-      invokeParams.guardrailVersion = process.env.GUARDRAIL_VERSION;
-    }
+
 
     const command = new InvokeModelWithResponseStreamCommand(invokeParams);
     

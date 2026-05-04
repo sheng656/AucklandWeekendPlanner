@@ -13,6 +13,7 @@ Auckland Weekend Planner is a premium, AI-powered travel assistant designed spec
 - **Live Event Sync**: Automatically pre-warms its database with the latest events from the **Eventfinda API**.
 - **High-Fidelity Imagery**: Features an automated S3-based image proxy and CloudFront CDN to deliver optimized, high-speed event cover photos.
 - **Intelligent Fallbacks**: Robust image logic ensures every activity has a beautiful visual, even if the source API is missing one.
+- **Cost-Efficient Security**: Leverages **AWS SSM Parameter Store** for zero-cost, secure credential management instead of expensive Secrets Manager alternatives.
 
 ### 🗺️ Interactive Timeline Experience
 - **Dynamic Controls**: Remove activities you don't like or "Swap" them for curated alternatives in the same time slot.
@@ -22,7 +23,7 @@ Auckland Weekend Planner is a premium, AI-powered travel assistant designed spec
   - **Mobile**: High-impact vertical card view for on-the-go planning.
 
 ### 🛡️ Safety & Reliability
-- **Content Guardrails**: Integrated with **AWS Bedrock Guardrails** and custom keyword filtering to ensure family-friendly content.
+- **Content Safety**: High-performance code-level keyword filtering and pre-filtering logic ensure family-friendly content without additional LLM invocation costs.
 - **Weather Awareness**: Real-time forecast integration via **OpenWeather API**, providing helpful hints and emoji-based weather status.
 - **Rate-Limit Optimized**: Background data pipeline uses sequential, back-off-ready logic to respect API provider limits.
 
