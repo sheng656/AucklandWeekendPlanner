@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Compass, ChevronDown, Plus, Calendar, MapPin, ExternalLink, Map, ChevronLeft, ChevronRight } from "lucide-react";
+import { getSourceShortLabel, getSourceColor, getSourceHoverColor } from "../../lib/sourceUtils";
 
 interface EventData {
   id: string;
@@ -15,6 +16,7 @@ interface EventData {
   is_free: boolean;
   url: string;
   mapped_region?: string;
+  source?: string;
 }
 
 interface MoreEventsProps {
@@ -195,9 +197,9 @@ export default function MoreEvents({
                           href={event.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] text-blue-500 hover:text-blue-700 flex items-center gap-0.5 transition-colors"
+                          className={`text-[10px] ${getSourceColor(event.source)} ${getSourceHoverColor(event.source)} flex items-center gap-0.5 transition-colors`}
                         >
-                          Eventfinda <ExternalLink className="w-2.5 h-2.5" />
+                          {getSourceShortLabel(event.source)} <ExternalLink className="w-2.5 h-2.5" />
                         </a>
                       )}
                     </div>

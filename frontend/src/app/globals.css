@@ -471,3 +471,63 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
+
+/* ===== Source Attribution Footer ===== */
+.source-attribution-footer {
+  margin-top: auto;
+  padding: 2rem 1rem 1.5rem;
+  text-align: center;
+}
+
+.source-attribution-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+.source-attribution-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.source-attribution-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.source-attribution-pill:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+.source-pill-name {
+  white-space: nowrap;
+}
+
+.source-attribution-disclaimer {
+  font-size: 0.6875rem;
+  color: #b0b8c4;
+  margin: 0;
+}

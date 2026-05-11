@@ -10,12 +10,14 @@ import {
   Map,
   RotateCcw,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import WeatherWidget, { getWeatherHint, weatherEmoji } from "./components/WeatherWidget";
 import DayTimeline from "./components/DayTimeline";
 import MoreEvents from "./components/MoreEvents";
 import ExportActions from "./components/ExportActions";
 import { trackGenerateItinerary } from "../lib/gtag";
+import { SOURCE_SITES } from "../lib/sourceUtils";
 
 type Audience = "Couples" | "Friends" | "Family" | "Solo";
 type Budget = "Free" | "Low" | "Medium" | "High";
@@ -75,6 +77,7 @@ interface EventData {
   location_summary: string;
   is_free: boolean;
   url: string;
+  source?: string;
 }
 
 interface WeatherForecast {
@@ -542,6 +545,30 @@ export default function Home() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ===== ATTRIBUTION FOOTER ===== */}
+      <footer className="source-attribution-footer">
+        <div className="max-w-3xl mx-auto w-full">
+          <p className="source-attribution-label">Events sourced from</p>
+          <div className="source-attribution-links">
+            {SOURCE_SITES.map((site) => (
+              <a
+                key={site.name}
+                href={site.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="source-attribution-pill"
+              >
+                <span className="source-pill-name">{site.name}</span>
+                <ExternalLink className="w-3 h-3 opacity-50" />
+              </a>
+            ))}
+          </div>
+          <p className="source-attribution-disclaimer">
+            Event data is aggregated from the above platforms for informational purposes.
+          </p>
+        </div>
+      </footer>
     </main>
   );
 }

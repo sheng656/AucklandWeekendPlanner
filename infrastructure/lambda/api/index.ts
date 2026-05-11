@@ -290,7 +290,8 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
             location_summary: e.location_summary,
             is_free: e.is_free,
             url: e.url,
-            mapped_region: e.mapped_region
+            mapped_region: e.mapped_region,
+            source: e.source || 'eventfinda'
           }))
         })
       };
@@ -329,7 +330,8 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
       location_summary: e.location_summary,
       is_free: e.is_free,
       url: e.url,
-      mapped_region: e.mapped_region
+      mapped_region: e.mapped_region,
+      source: e.source || 'eventfinda'
     }));
 
     const recommendedEvents = allFormattedEvents.filter((e: any) => mentionedIds.has(String(e.id)));

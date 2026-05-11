@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Calendar, MapPin, ExternalLink } from "lucide-react";
+import { getSourceLabel, getSourceColor, getSourceHoverColor } from "../../lib/sourceUtils";
 
 interface EventCardProps {
   event: {
@@ -12,10 +13,15 @@ interface EventCardProps {
     location_summary: string;
     is_free: boolean;
     url: string;
+    source?: string;
   };
 }
 
 export default function EventCard({ event }: EventCardProps) {
+  const sourceLabel = getSourceLabel(event.source);
+  const sourceColor = getSourceColor(event.source);
+  const sourceHover = getSourceHoverColor(event.source);
+
   return (
     <motion.div
       whileHover={{ scale: 1.03 }}
@@ -68,9 +74,9 @@ export default function EventCard({ event }: EventCardProps) {
           href={event.url} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="mt-2 text-xs font-semibold text-blue-600 flex items-center gap-1 hover:text-blue-800 transition-colors"
+          className={`mt-2 text-xs font-semibold ${sourceColor} flex items-center gap-1 ${sourceHover} transition-colors`}
         >
-          View on Eventfinda <ExternalLink className="w-3 h-3" />
+          {sourceLabel} <ExternalLink className="w-3 h-3" />
         </a>
       </div>
     </motion.div>

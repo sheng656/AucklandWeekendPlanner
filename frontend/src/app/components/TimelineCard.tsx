@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { MapPin, Clock, DollarSign, ExternalLink, ArrowLeftRight, Trash2, Plus } from "lucide-react";
+import { getSourceLabel, getSourceColor, getSourceHoverColor } from "../../lib/sourceUtils";
 
 export interface Activity {
   title: string;
@@ -19,6 +20,7 @@ interface TimelineCardProps {
     image_url?: string;
     url?: string;
     is_free?: boolean;
+    source?: string;
   };
   isSwapping: boolean;
   onSwapClick: () => void;
@@ -49,6 +51,10 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
   // 2. Normal Card State (with faded background image)
   const fallbackSeed = activity.eventId || activity.title.replace(/\s+/g, '');
   const imageUrl = eventData?.image_url || `https://picsum.photos/seed/${fallbackSeed}/800/450`;
+
+  const sourceLabel = getSourceLabel(eventData?.source);
+  const sourceColor = getSourceColor(eventData?.source);
+  const sourceHover = getSourceHoverColor(eventData?.source);
 
   return (
     <motion.div
@@ -130,9 +136,9 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
             href={eventData.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-500 hover:text-blue-700 transition-colors mt-1 w-fit"
+            className={`inline-flex items-center gap-1 text-[11px] font-semibold ${sourceColor} ${sourceHover} transition-colors mt-1 w-fit`}
           >
-            View on Eventfinda <ExternalLink className="w-3 h-3" />
+            {sourceLabel} <ExternalLink className="w-3 h-3" />
           </a>
         )}
       </div>

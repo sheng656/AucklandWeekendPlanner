@@ -136,6 +136,28 @@ export function extractListCandidates(html: string, baseUrl: string): ListEventC
 function getByLabeledBlock($: cheerio.CheerioAPI, labels: string[]): string | undefined {
   const lowered = labels.map((l) => l.toLowerCase());
 
+  // OurAuckland pattern: <div class="event-panel__group"><h3 class="small">Where</h3><p>Location</p></div>
+  // Look for h3.small with matching label, then get text from next p or direct text content
+  const h3Small = $('h3.small').filter((_, el) => {
+    const text = cleanText($(el).text()).toLowerCase().replace(/:$/, '');
+    return lowered.includes(text);
+  }).first();
+
+  if (h3Small.length) {
+    // Try to get from next <p> tag
+    const nextP = h3Small.next('p');
+    if (nextP.length) {
+      return cleanText(nextP.text());
+    }
+    // Try to get from direct text in parent after h3
+    const parent = h3Small.parent();
+    const allText = cleanText(parent.text());
+    const labelText = cleanText(h3Small.text());
+    const remaining = allText.replace(labelText, '').trim();
+    if (remaining) return remaining;
+  }
+
+  // Fallback: dt/dd pattern
   const dtValue = $('dt').filter((_, el) => {
     const text = cleanText($(el).text()).toLowerCase().replace(/:$/, '');
     return lowered.includes(text);
@@ -143,6 +165,7 @@ function getByLabeledBlock($: cheerio.CheerioAPI, labels: string[]): string | un
   const dtText = cleanText(dtValue.text());
   if (dtText) return dtText;
 
+  // Fallback: generic heading+sibling pattern
   const heading = $('h1,h2,h3,h4,strong,b,p,span,div').filter((_, el) => {
     const text = cleanText($(el).text()).toLowerCase();
     return lowered.some((l) => text === l || text.startsWith(`${l}:`));
@@ -155,6 +178,7 @@ function getByLabeledBlock($: cheerio.CheerioAPI, labels: string[]): string | un
     if (inline && !lowered.includes(inline.toLowerCase())) return inline;
   }
 
+  // Fallback: regex search in body text
   const regex = new RegExp(`(?:${lowered.join('|')})\\s*:\\s*([^\\n\\r]+)`, 'i');
   const bodyText = cleanText($.root().text());
   const match = bodyText.match(regex);

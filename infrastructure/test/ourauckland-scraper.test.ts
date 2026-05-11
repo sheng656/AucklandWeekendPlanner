@@ -78,4 +78,40 @@ describe('ourauckland scraper helpers', () => {
     expect(evaluateWeekendFromDateText('Tuesday 19 May 2026')).toBe(false);
     expect(evaluateWeekendFromDateText('16 May 2026')).toBeUndefined();
   });
+
+  test('parseDetailEvent extracts from OurAuckland event-panel structure', () => {
+    const html = `
+      <html>
+        <head>
+          <meta property="og:title" content="Microgreens workshop for kids" />
+          <meta property="og:image" content="https://ourauckland.aucklandcouncil.govt.nz/media/m0kfv4cw/kids-microgreens_uxka1mmv.png" />
+        </head>
+        <body>
+          <h1>Microgreens workshop for kids</h1>
+          <div class="event-panel__group">
+            <h3 class="small">Where</h3>
+            <p>Regionwide</p>
+          </div>
+          <div class="event-panel__group">
+            <h3 class="small">When</h3>
+            <p>Thursday 9 April 2026 - Thursday 17 December 2026</p>
+          </div>
+          <div class="event-panel__group">
+            <h3 class="small">Cost</h3>
+            Free
+          </div>
+          <article>
+            <p>A fun, hands-on microgreens workshop for kids and their caregivers.</p>
+          </article>
+        </body>
+      </html>
+    `;
+
+    const result = parseDetailEvent(html, 'https://ourauckland.aucklandcouncil.govt.nz/events/2026/01/microgreens-workshop-for-kids/');
+    expect(result.title).toBe('Microgreens workshop for kids');
+    expect(result.locationText).toBe('Regionwide');
+    expect(result.dateText).toContain('April 2026');
+    expect(result.costText).toBe('Free');
+    expect(result.description).toContain('microgreens workshop');
+  });
 });
