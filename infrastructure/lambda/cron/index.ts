@@ -271,7 +271,7 @@ export const handler = async (event: any) => {
       // We'll fetch the last 30 events to ensure we catch upcoming ones
       const kidsResponse = await fetch(`https://www.aucklandforkids.co.nz/wp-json/wp/v2/ajde_events?per_page=30&_embed`);
       if (kidsResponse.ok) {
-        const kidsEvents: any[] = await kidsResponse.json();
+        const kidsEvents = (await kidsResponse.json()) as any[];
         console.log(`Fetched ${kidsEvents.length} events from Auckland for Kids.`);
 
         for (const item of kidsEvents) {
