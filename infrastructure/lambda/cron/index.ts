@@ -2,25 +2,13 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { SSMClient, GetParametersByPathCommand } from "@aws-sdk/client-ssm";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { loadAllStoredEvents, persistEventWithDedupe } from '../shared/dedupe';
-import { extractLdJson, mapAucklandKidsRegion } from '../auckland_kids/scraper';
+import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent } from '../shared/dedupe';
 
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 const ssmClient = new SSMClient({});
 const s3Client = new S3Client({});
 
-// Adult content keywords for pre-filtering inappropriate events
-const ADULT_KEYWORDS = [
-  'revue', 'strip', 'burlesque', '18+', 'r18',
-  'adults only', 'adult only', 'male revue', 'female revue',
-  'exotic dance', 'gentleman', 'lingerie', 'erotic'
-];
-
-function isAppropriateEvent(event: { name: string; description?: string }): boolean {
-  const text = `${event.name || ''} ${event.description || ''}`.toLowerCase();
-  return !ADULT_KEYWORDS.some(kw => text.includes(kw));
-}
 
 // Auckland Suburb mapping table
 const REGION_MAPPING: Record<string, string[]> = {
@@ -263,104 +251,6 @@ export const handler = async (event: any) => {
         sourceImageUrl: originalImageUrl || undefined,
         scrapedAt: new Date().toISOString(),
       }, { dryRun });
-    }
-
-    console.log("Starting Auckland for Kids Ingest...");
-    try {
-      // Fetch recent events from Auckland for Kids WP API
-      // We'll fetch the last 30 events to ensure we catch upcoming ones
-      const kidsResponse = await fetch(`https://www.aucklandforkids.co.nz/wp-json/wp/v2/ajde_events?per_page=30&_embed`);
-      if (kidsResponse.ok) {
-        const kidsEvents = (await kidsResponse.json()) as any[];
-        console.log(`Fetched ${kidsEvents.length} events from Auckland for Kids.`);
-
-        for (const item of kidsEvents) {
-          const detailUrl = item.link;
-          const sourceEventId = String(item.id);
-
-          // 1. Fetch detail page for LD+JSON
-          let structuredData = null;
-          try {
-            const detailRes = await fetch(detailUrl, { headers: { 'User-Agent': 'AucklandWeekendPlanner/1.0' } });
-            if (detailRes.ok) {
-              const html = await detailRes.text();
-              structuredData = extractLdJson(html);
-            }
-          } catch (e) {
-            console.error(`Failed to fetch detail for ${detailUrl}`, e);
-          }
-
-          if (!structuredData) {
-            console.log(`Skipping ${detailUrl} - no structured data found.`);
-            continue;
-          }
-
-          // 2. Map fields
-          const name = structuredData.name || item.title.rendered;
-          const description = item.content.rendered.replace(/<[^>]*>/g, '').slice(0, 500); // Simple strip tags
-          
-          if (!isAppropriateEvent({ name, description })) {
-            console.log(`Skipping inappropriate event: ${name}`);
-            continue;
-          }
-
-          const datetimeStart = structuredData.startDate;
-          const datetimeEnd = structuredData.endDate;
-          const locationSummary = structuredData.locationName || structuredData.streetAddress || "Auckland";
-          
-          // Map region using taxonomy if available, otherwise fallback
-          const regionIds = item.event_type_2 || [];
-          const mappedRegion = mapAucklandKidsRegion(regionIds);
-
-          // 3. Image Processing
-          let cloudfrontUrl = '';
-          const sourceImageUrl = item._embedded?.['wp:featuredmedia']?.[0]?.source_url || '';
-          
-          if (sourceImageUrl && !dryRun) {
-            try {
-              const imgResponse = await fetch(sourceImageUrl);
-              if (imgResponse.ok) {
-                const arrayBuffer = await imgResponse.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-                const objectKey = `events/kids-${sourceEventId}.jpg`;
-                
-                await s3Client.send(new PutObjectCommand({
-                  Bucket: imageBucketName,
-                  Key: objectKey,
-                  Body: buffer,
-                  ContentType: 'image/jpeg',
-                }));
-                cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
-              }
-            } catch (e) {
-              console.error(`Image download failed for kids event ${sourceEventId}`, e);
-            }
-          }
-
-          // 4. Persist
-          await persistEventWithDedupe(docClient, tableName, existingRecords, {
-            source: 'aucklandforkids',
-            sourceEventId,
-            name,
-            description,
-            url: detailUrl,
-            datetimeStart,
-            datetimeEnd,
-            locationSummary,
-            mappedRegion,
-            isFree: description.toLowerCase().includes('free'), // Heuristic as it's not always in LD+JSON
-            imageUrl: cloudfrontUrl || undefined,
-            sourceImageUrl: sourceImageUrl || undefined,
-            scrapedAt: new Date().toISOString(),
-          }, { dryRun });
-          
-          await new Promise(r => setTimeout(r, 1000)); // Respectful delay
-        }
-      } else {
-        console.error(`Auckland for Kids API failed: ${kidsResponse.status}`);
-      }
-    } catch (err) {
-      console.error("Auckland for Kids Ingest failed", err);
     }
     
     console.log("Completed Cron job pre-warm successfully.");

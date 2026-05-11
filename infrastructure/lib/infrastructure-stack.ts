@@ -103,6 +103,26 @@ export class InfrastructureStack extends cdk.Stack {
     });
     ourAucklandRule.addTarget(new targets.LambdaFunction(ourAucklandLambda));
 
+    const kidsLambda = new lambdaNodejs.NodejsFunction(this, 'AucklandKidsIngest', {
+      entry: path.join(__dirname, '../lambda/auckland_kids/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_22_X,
+      timeout: cdk.Duration.minutes(15),
+      environment: {
+        TABLE_NAME: dataTable.tableName,
+        IMAGE_BUCKET_NAME: imageBucket.bucketName,
+        CLOUDFRONT_DOMAIN: distribution.distributionDomainName,
+      },
+    });
+
+    dataTable.grantReadWriteData(kidsLambda);
+    imageBucket.grantWrite(kidsLambda);
+
+    const kidsRule = new events.Rule(this, 'ScheduleAucklandKidsIngest', {
+      schedule: events.Schedule.rate(cdk.Duration.hours(48)),
+    });
+    kidsRule.addTarget(new targets.LambdaFunction(kidsLambda));
+
     // 3. API Lambda (Reads from DB, Calls Bedrock, Responds to frontend via HTTP)
     const apiLambda = new lambdaNodejs.NodejsFunction(this, 'ApiHandler', {
       entry: path.join(__dirname, '../lambda/api/index.ts'),

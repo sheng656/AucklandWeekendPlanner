@@ -20,6 +20,18 @@ export interface IngestEventInput {
   scrapedAt?: string;
 }
 
+// Adult content keywords for pre-filtering inappropriate events
+export const ADULT_KEYWORDS = [
+  'revue', 'strip', 'burlesque', '18+', 'r18',
+  'adults only', 'adult only', 'male revue', 'female revue',
+  'exotic dance', 'gentleman', 'lingerie', 'erotic'
+];
+
+export function isAppropriateEvent(event: { name: string; description?: string }): boolean {
+  const text = `${event.name || ''} ${event.description || ''}`.toLowerCase();
+  return !ADULT_KEYWORDS.some(kw => text.includes(kw));
+}
+
 export interface StoredEventItem {
   PK?: string;
   SK?: string;
