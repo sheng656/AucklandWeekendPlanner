@@ -13,7 +13,7 @@ Auckland Weekend Planner is a premium, AI-powered travel assistant designed spec
 - **Multi-Source Aggregation**: Blends events from multiple premium sources for maximum coverage:
   - **Eventfinda API**: Direct integration with NZ's largest event platform.
   - **OurAuckland**: Scrapes Auckland Council's official community event portal.
-  - **Auckland for Kids (Planned)**: Upcoming integration for dedicated family discovery.
+  - **Auckland for Kids**: Hybrid REST/LD+JSON parsing for dedicated family and kids discovery.
 - **Intelligent Deduplication**: Advanced similarity scoring ensures no duplicate entries when an event is listed across multiple platforms.
 - **High-Fidelity Imagery**: Features an automated S3-based image proxy and CloudFront CDN to deliver optimized, high-speed event cover photos.
 - **Cost-Efficient Security**: Leverages **AWS SSM Parameter Store** for zero-cost, secure credential management instead of expensive Secrets Manager alternatives.
