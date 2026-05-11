@@ -11,10 +11,21 @@ export interface AucklandKidsEvent {
 
 export interface StructuredEventData {
   name: string;
-  startDate?: string;
+  startDate: string;
   endDate?: string;
   locationName?: string;
   streetAddress?: string;
+  isFree?: boolean;
+}
+
+function normalizeDateString(value?: string): string {
+  if (!value) return '';
+  const isoMatch = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(T.*)?$/);
+  if (isoMatch) {
+    const [_, y, m, d, t] = isoMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}${t || ''}`;
+  }
+  return value;
 }
 
 /**
@@ -35,12 +46,22 @@ export function extractLdJson(html: string): StructuredEventData | null {
       const eventObj = items.find((item: any) => item['@type'] === 'Event');
       
       if (eventObj) {
+        const loc = Array.isArray(eventObj.location) ? eventObj.location[0] : eventObj.location;
+        const offer = Array.isArray(eventObj.offers) ? eventObj.offers[0] : eventObj.offers;
+        
+        let isFree = false;
+        if (offer) {
+          const price = parseFloat(offer.price);
+          if (price === 0) isFree = true;
+        }
+
         data = {
           name: eventObj.name,
-          startDate: eventObj.startDate,
-          endDate: eventObj.endDate,
-          locationName: eventObj.location?.name,
-          streetAddress: eventObj.location?.address?.streetAddress,
+          startDate: normalizeDateString(eventObj.startDate),
+          endDate: normalizeDateString(eventObj.endDate),
+          locationName: loc?.name,
+          streetAddress: loc?.address?.streetAddress,
+          isFree,
         };
         return false; // break loop
       }

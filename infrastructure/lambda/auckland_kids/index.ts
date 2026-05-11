@@ -68,7 +68,9 @@ export const handler = async (event: any) => {
 
       const datetimeStart = structuredData.startDate;
       const datetimeEnd = structuredData.endDate;
-      const locationSummary = structuredData.locationName || structuredData.streetAddress || "Auckland";
+      
+      const locParts = [structuredData.locationName, structuredData.streetAddress].filter(Boolean);
+      const locationSummary = locParts.length > 0 ? locParts.join(', ') : "Auckland";
       
       const regionIds = item.event_type_2 || [];
       const mappedRegion = mapAucklandKidsRegion(regionIds);
@@ -109,7 +111,7 @@ export const handler = async (event: any) => {
         datetimeEnd,
         locationSummary,
         mappedRegion,
-        isFree: description.toLowerCase().includes('free'), 
+        isFree: structuredData.isFree ?? description.toLowerCase().includes('free'), 
         imageUrl: cloudfrontUrl || undefined,
         sourceImageUrl: sourceImageUrl || undefined,
         scrapedAt: new Date().toISOString(),

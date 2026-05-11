@@ -87,7 +87,17 @@ export function normalizeTitle(value?: string): string {
 
 export function toAucklandDateKey(value?: string): string {
   if (!value) return '';
-  const date = new Date(value);
+  
+  // Normalize YYYY-M-D to YYYY-MM-DD for standard Date parsing
+  // This handles formats like "2026-5-16" which are common in some WP plugins
+  let normalized = value;
+  const isoMatch = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(T.*)?$/);
+  if (isoMatch) {
+    const [_, y, m, d, t] = isoMatch;
+    normalized = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}${t || ''}`;
+  }
+
+  const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Pacific/Auckland',
