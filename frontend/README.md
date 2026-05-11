@@ -9,9 +9,12 @@ This directory contains the Next.js application used for itinerary input and res
 	- Budget: Free, Low, Medium, High
 	- Trip day: Saturday, Sunday, Both Days
 	- Region: Central Auckland, East Auckland, West Auckland, South Auckland, North Shore, Waiheke Island
+- **Multi-Source Event Support**: Dynamic card links and labels for Eventfinda, OurAuckland, and Auckland for Kids.
+- **Attribution Footer**: Dedicated section linking to all event data providers.
+- **Weather-Aware Planning**: Real-time forecast integration providing weekend hints in the preference panel.
 - API call flow to backend with selected preferences.
 - Loading state and itinerary regeneration support.
-- Markdown rendering for structured itinerary output.
+- Structured timeline rendering with image-rich event cards.
 - Responsive, animated visual design using Tailwind + Framer Motion.
 - Basic fallback itinerary when API call fails.
 

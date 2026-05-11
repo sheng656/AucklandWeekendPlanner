@@ -10,14 +10,16 @@ This directory contains the AWS CDK stack and Lambda handlers for the serverless
   - API Lambda (itinerary generation)
   - Cron Lambda (event pre-warming)
   - EventBridge rules for ingestion run every 48 hours
-- Bedrock invocation from API Lambda (Claude 3 Haiku).
+- Bedrock invocation from API Lambda (Claude 4.5 Haiku).
 - Eventfinda ingestion pipeline with page-by-page fetch and throttling delay.
-  - OurAuckland ingestion pipeline using the Surface API POST endpoint, Cheerio parsing, and detail-page enrichment for location/cost.
-  - Shared dedupe logic that lets OurAuckland override older duplicates while preserving provenance.
+- OurAuckland ingestion pipeline using the Surface API POST endpoint, Cheerio parsing, and detail-page enrichment for location/cost.
+- Shared dedupe logic that lets OurAuckland override older duplicates while preserving provenance.
+- **Source Field Pass-through**: API Handler now includes `source` metadata in responses to enable dynamic frontend attribution.
 - SSM Parameter Store access for runtime secrets/config.
 
 ## Planned Features
 
+- **Auckland for Kids Ingest**: Add a third ingestion pipeline for dedicated family discovery.
 - Wire OpenWeather data into cron and planning prompt.
 - Narrow IAM permissions to specific Bedrock model ARNs.
 - Restrict CORS allowOrigins for production domains.
