@@ -11,6 +11,7 @@ Auckland Weekend Planner is a premium, AI-powered travel assistant designed spec
 
 ### 📅 Real-Time Event Integration
 - **Live Event Sync**: Automatically pre-warms its database with the latest events from the **Eventfinda API**.
+- **OurAuckland Surface Ingest**: Adds a second Auckland event source using the public Surface API POST endpoint, with Cheerio parsing of event list + detail pages for weekend discovery.
 - **High-Fidelity Imagery**: Features an automated S3-based image proxy and CloudFront CDN to deliver optimized, high-speed event cover photos.
 - **Intelligent Fallbacks**: Robust image logic ensures every activity has a beautiful visual, even if the source API is missing one.
 - **Cost-Efficient Security**: Leverages **AWS SSM Parameter Store** for zero-cost, secure credential management instead of expensive Secrets Manager alternatives.
@@ -35,6 +36,10 @@ Auckland Weekend Planner is a premium, AI-powered travel assistant designed spec
 - **Data Persistence**: DynamoDB (Single-table design with TTL).
 - **Storage/CDN**: Amazon S3 + CloudFront (Image Caching).
 - **Infrastructure**: AWS CDK (Infrastructure as Code).
+
+### 🧪 Dev Validation
+- **Dry-run Mode**: Both ingest Lambdas support `INGEST_DRY_RUN=true`, which runs list/detail parsing and dedupe simulation without writing to DynamoDB or uploading images.
+- **48-hour Cadence**: Eventfinda and OurAuckland ingest jobs are scheduled every 48 hours to reduce load and keep free-tier usage low.
 
 ## 📂 Repository Layout
 

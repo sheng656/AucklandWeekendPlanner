@@ -2,6 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { SSMClient, GetParametersByPathCommand } from "@aws-sdk/client-ssm";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { loadAllStoredEvents, persistEventWithDedupe } from '../shared/dedupe';
 
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
@@ -87,6 +88,7 @@ export const handler = async (event: any) => {
   console.log("Starting Pre-Warming Cron Job for Eventfinda Data...");
   
   try {
+    const dryRun = process.env.INGEST_DRY_RUN === 'true';
     const ssmConfig = await getEventfindaConfig();
     const token = Buffer.from(`${ssmConfig.username}:${ssmConfig.password}`).toString('base64');
     const imageBucketName = process.env.IMAGE_BUCKET_NAME;
@@ -185,6 +187,10 @@ export const handler = async (event: any) => {
     }
 
     const tableName = process.env.TABLE_NAME;
+    if (!tableName) {
+      throw new Error('TABLE_NAME is required');
+    }
+    const existingRecords = await loadAllStoredEvents(docClient, tableName);
     
     for (const item of appropriateEvents) {
       let cloudfrontUrl = '';
@@ -209,25 +215,29 @@ export const handler = async (event: any) => {
       if (originalImageUrl) {
         try {
             console.log(`Processing event ${item.id}: Downloading from ${originalImageUrl}`);
-            const imgResponse = await fetch(originalImageUrl, {
-              headers: { 'User-Agent': 'Mozilla/5.0 (AucklandWeekendPlanner/1.0)' }
-            });
-            
-            if (imgResponse.ok) {
-              const arrayBuffer = await imgResponse.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-              const objectKey = `events/${item.id}.jpg`;
+            if (!dryRun) {
+              const imgResponse = await fetch(originalImageUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (AucklandWeekendPlanner/1.0)' }
+              });
               
-              await s3Client.send(new PutObjectCommand({
-                Bucket: imageBucketName,
-                Key: objectKey,
-                Body: buffer,
-                ContentType: 'image/jpeg',
-              }));
-              
-              cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
+              if (imgResponse.ok) {
+                const arrayBuffer = await imgResponse.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                const objectKey = `events/${item.id}.jpg`;
+                
+                await s3Client.send(new PutObjectCommand({
+                  Bucket: imageBucketName,
+                  Key: objectKey,
+                  Body: buffer,
+                  ContentType: 'image/jpeg',
+                }));
+                
+                cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
+              } else {
+                console.error(`Download failed for ${item.id}: ${imgResponse.status}`);
+              }
             } else {
-              console.error(`Download failed for ${item.id}: ${imgResponse.status}`);
+              console.log(`DRY_RUN would upload image for Eventfinda event ${item.id}`);
             }
           } catch (err) {
             console.error(`Error processing image for ${item.id}:`, err);
@@ -235,28 +245,23 @@ export const handler = async (event: any) => {
           await sleep(1200); 
         }
 
-      // 7 days TTL (Data automatically disappears)
-      const ttl = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); 
-      
       const mappedRegion = mapToMacroRegion(item.location_summary || "");
 
-      await docClient.send(new PutCommand({
-        TableName: tableName,
-        Item: {
-          PK: `REGION#AUCKLAND`,
-          SK: `EVENT#${item.datetime_start || new Date().toISOString()}#${item.id}`,
-          ttl: ttl,
-          name: item.name,
-          description: item.description,
-          url: item.url,
-          datetime_start: item.datetime_start,
-          datetime_end: item.datetime_end,
-          location_summary: item.location_summary || 'Unknown Location',
-          is_free: item.is_free,
-          image_url: cloudfrontUrl,
-          mapped_region: mappedRegion
-        }
-      }));
+      await persistEventWithDedupe(docClient, tableName || '', existingRecords, {
+        source: 'eventfinda',
+        sourceEventId: String(item.id),
+        name: item.name,
+        description: item.description,
+        url: item.url,
+        datetimeStart: item.datetime_start,
+        datetimeEnd: item.datetime_end,
+        locationSummary: item.location_summary || 'Unknown Location',
+        mappedRegion,
+        isFree: item.is_free,
+        imageUrl: cloudfrontUrl || undefined,
+        sourceImageUrl: originalImageUrl || undefined,
+        scrapedAt: new Date().toISOString(),
+      }, { dryRun });
     }
     
     console.log("Completed Cron job pre-warm successfully.");

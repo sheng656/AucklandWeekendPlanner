@@ -9,9 +9,11 @@ This directory contains the AWS CDK stack and Lambda handlers for the serverless
   - API Gateway HTTP API
   - API Lambda (itinerary generation)
   - Cron Lambda (event pre-warming)
-  - EventBridge rule (runs every 8 hours)
+  - EventBridge rules for ingestion run every 48 hours
 - Bedrock invocation from API Lambda (Claude 3 Haiku).
 - Eventfinda ingestion pipeline with page-by-page fetch and throttling delay.
+  - OurAuckland ingestion pipeline using the Surface API POST endpoint, Cheerio parsing, and detail-page enrichment for location/cost.
+  - Shared dedupe logic that lets OurAuckland override older duplicates while preserving provenance.
 - SSM Parameter Store access for runtime secrets/config.
 
 ## Planned Features
@@ -21,6 +23,7 @@ This directory contains the AWS CDK stack and Lambda handlers for the serverless
 - Restrict CORS allowOrigins for production domains.
 - Add structured logging, metrics, and alarms.
 - Add integration tests for API and cron handlers.
+- Expand dev dry-run coverage for ingest Lambdas if more sources are added.
 
 ## Prerequisites
 
@@ -58,6 +61,7 @@ Expected SSM path:
 - /AucklandPlanner/Config/EVENTFINDA_USERNAME
 - /AucklandPlanner/Config/EVENTFINDA_PASSWORD
 - /AucklandPlanner/Config/OPENWEATHER_API_KEY (reserved for upcoming weather integration)
+- INGEST_DRY_RUN=true can be used in a dev environment to run the ingest path without DynamoDB writes or image uploads.
 
 ## Useful Commands
 
@@ -70,6 +74,12 @@ aws logs tail /aws/lambda/InfrastructureStack-ApiHandler --follow --region ap-so
 
 # Tail cron logs
 aws logs tail /aws/lambda/InfrastructureStack-PreWarmingCron --follow --region ap-southeast-2
+
+# Tail OurAuckland ingest logs
+aws logs tail /aws/lambda/InfrastructureStack-OurAucklandSurfaceIngest --follow --region ap-southeast-2
+
+# Run a dev dry-run locally (no DynamoDB writes or image uploads)
+INGEST_DRY_RUN=true npm test -- --runInBand test/dedupe.test.ts
 
 # Destroy all deployed resources
 npx cdk destroy

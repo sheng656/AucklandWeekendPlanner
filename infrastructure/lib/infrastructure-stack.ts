@@ -73,9 +73,35 @@ export class InfrastructureStack extends cdk.Stack {
 
     // Every 24 hours rule
     const rule = new events.Rule(this, 'SchedulePreWarming', {
-      schedule: events.Schedule.rate(cdk.Duration.hours(24)),
+      schedule: events.Schedule.rate(cdk.Duration.hours(48)),
     });
     rule.addTarget(new targets.LambdaFunction(cronLambda));
+
+    const ourAucklandLambda = new lambdaNodejs.NodejsFunction(this, 'OurAucklandSurfaceIngest', {
+      entry: path.join(__dirname, '../lambda/ourauckland/index.ts'),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_22_X,
+      timeout: cdk.Duration.minutes(15),
+      environment: {
+        TABLE_NAME: dataTable.tableName,
+        IMAGE_BUCKET_NAME: imageBucket.bucketName,
+        CLOUDFRONT_DOMAIN: distribution.distributionDomainName,
+        OURAUCKLAND_SURFACE_ENDPOINT: 'https://ourauckland.aucklandcouncil.govt.nz/umbraco/surface/EventSurface/GetSearchResults',
+        OURAUCKLAND_TIMEOUT_MS: '15000',
+        OURAUCKLAND_LIST_DELAY_MS: '300',
+        OURAUCKLAND_DETAIL_DELAY_MS: '300',
+        OURAUCKLAND_MAX_PAGES: '12',
+        OURAUCKLAND_MAX_DETAILS_PER_RUN: '300',
+      },
+    });
+
+    dataTable.grantReadWriteData(ourAucklandLambda);
+    imageBucket.grantWrite(ourAucklandLambda);
+
+    const ourAucklandRule = new events.Rule(this, 'ScheduleOurAucklandSurfaceIngest', {
+      schedule: events.Schedule.rate(cdk.Duration.hours(48)),
+    });
+    ourAucklandRule.addTarget(new targets.LambdaFunction(ourAucklandLambda));
 
     // 3. API Lambda (Reads from DB, Calls Bedrock, Responds to frontend via HTTP)
     const apiLambda = new lambdaNodejs.NodejsFunction(this, 'ApiHandler', {
