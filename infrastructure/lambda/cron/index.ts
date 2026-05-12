@@ -4,6 +4,7 @@ import { SSMClient, GetParametersByPathCommand } from "@aws-sdk/client-ssm";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
 import { sleep, fetchWithRetry, computeUpcomingWeekendRange } from '../shared/utils';
+import { mapToMacroRegion } from '../shared/regions';
 
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
@@ -11,49 +12,6 @@ const ssmClient = new SSMClient({});
 const s3Client = new S3Client({});
 
 
-// Auckland Suburb mapping table
-const REGION_MAPPING: Record<string, string[]> = {
-  "Central Auckland": [
-    "cbd", "central", "ponsonby", "parnell", "newmarket", "mt eden", "mount eden", 
-    "epsom", "grey lynn", "pt chev", "point chevalier", "mt albert", "mount albert", 
-    "mission bay", "st heliers", "remuera", "onehunga", "ellerslie", "greenlane",
-    "kingsland", "grafton", "newton", "freemans bay", "herne bay", "sylvia park"
-  ],
-  "North Shore": [
-    "north shore", "takapuna", "albany", "devonport", "milford", "birkenhead", 
-    "glenfield", "northcote", "browns bay", "wairau", "castor bay", "mokoia",
-    "beach haven", "sunnynook", "rothesay", "orewa", "whangaparaoa", "silverdale"
-  ],
-  "West Auckland": [
-    "west auckland", "henderson", "titirangi", "new lynn", "massey", "te atatu", 
-    "hobsonville", "kumeu", "piha", "glen eden", "kelston", "huapai", "muriwai",
-    "swanson", "ranui", "waitakere"
-  ],
-  "South Auckland": [
-    "south auckland", "manukau", "papatoetoe", "mangere", "manurewa", "papakura", 
-    "pukekohe", "otahuhu", "takanini", "karaka", "weymouth", "wiri", "franklin"
-  ],
-  "East Auckland": [
-    "east auckland", "howick", "pakuranga", "botany", "half moon bay", "flat bush", 
-    "clevedon", "dannemora", "highland park", "bucklands beach", "whitford"
-  ],
-  "Waiheke Island": [
-    "waiheke", "oneroa", "onetangi", "surfdale", "ostend", "matiatia"
-  ]
-};
-
-// Map specific location summary to macro region
-function mapToMacroRegion(locationSummary: string): string {
-  if (!locationSummary) return "Unknown";
-  const locLower = locationSummary.toLowerCase();
-
-  for (const [region, keywords] of Object.entries(REGION_MAPPING)) {
-    if (keywords.some(kw => locLower.includes(kw))) {
-      return region;
-    }
-  }
-  return "Unknown"; 
-}
 
 // A utility function to fetch Eventfinda configuration from SSM Parameter Store
 async function getEventfindaConfig() {
@@ -84,9 +42,6 @@ export const handler = async (event: any) => {
     const imageBucketName = process.env.IMAGE_BUCKET_NAME;
     const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN;
     
-    // Using a sleep approach down manually per the design constraints
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    
     // Dynamic lookup of Auckland Location ID
     let locationId = '2';
     try {
@@ -111,7 +66,7 @@ export const handler = async (event: any) => {
     
     const { startDate: startDateStr, endDate: endDateStr } = computeUpcomingWeekendRange();
     
-    const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,restrictions,images),image:(transforms),transform:(url,transformation_id)';
+    const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,restrictions,admission_prices,images),image:(transforms),transform:(url,transformation_id)';
     
     const allAucklandEvents: any[] = [];
     let currentOffset = 0;
@@ -258,6 +213,27 @@ export const handler = async (event: any) => {
           await sleep(1500); // Increased sleep to prevent rate limiting/throttling
         }
 
+      // Handle cost_text intelligently
+      let costText = item.is_free ? 'Free' : (item.restrictions || '');
+      
+      if (!item.is_free && item.admission_prices && item.admission_prices.admission_prices) {
+        const prices = Array.isArray(item.admission_prices.admission_prices) 
+          ? item.admission_prices.admission_prices 
+          : [item.admission_prices.admission_prices];
+          
+        if (prices.length > 0) {
+          // Format first price or summary
+          const p = prices[0];
+          if (p.price === 0) {
+            costText = 'Free';
+          } else if (p.price && p.name) {
+            costText = `${p.name}: $${p.price}`;
+          } else if (p.price) {
+            costText = `$${p.price}`;
+          }
+        }
+      }
+
       await persistEventWithDedupe(docClient, tableName || '', existingRecords, {
         source: 'eventfinda',
         sourceEventId: String(item.id),
@@ -271,7 +247,7 @@ export const handler = async (event: any) => {
         isFree: item.is_free,
         imageUrl: cloudfrontUrl || undefined,
         sourceImageUrl: originalImageUrl || undefined,
-        costText: item.restrictions,
+        costText: costText,
         scrapedAt: new Date().toISOString(),
       }, { dryRun });
     }
