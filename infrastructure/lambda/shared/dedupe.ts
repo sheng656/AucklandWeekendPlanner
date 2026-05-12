@@ -208,8 +208,13 @@ export function findMatchingRecord(records: StoredEventItem[], incoming: IngestE
 
 function canonicalWinner(existing: StoredEventItem, incoming: IngestEventInput): 'existing' | 'incoming' {
   const existingSource = inferSource(existing);
+  
+  // If it's the same source, always allow the new scrape to update attributes
+  if (incoming.source === existingSource) return 'incoming';
+  
   if (incoming.source === OUR_AUCKLAND_SOURCE && existingSource !== OUR_AUCKLAND_SOURCE) return 'incoming';
   if (existingSource === OUR_AUCKLAND_SOURCE && incoming.source !== OUR_AUCKLAND_SOURCE) return 'existing';
+  
   return 'existing';
 }
 

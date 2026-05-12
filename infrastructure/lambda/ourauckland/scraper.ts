@@ -36,25 +36,30 @@ const REGION_MAPPING: Record<string, string[]> = {
     'cbd', 'central', 'ponsonby', 'parnell', 'newmarket', 'mt eden', 'mount eden',
     'epsom', 'grey lynn', 'pt chev', 'point chevalier', 'mt albert', 'mount albert',
     'mission bay', 'st heliers', 'remuera', 'onehunga', 'ellerslie', 'greenlane',
-    'kingsland', 'grafton', 'newton', 'freemans bay', 'herne bay', 'sylvia park'
+    'kingsland', 'grafton', 'newton', 'freemans bay', 'herne bay', 'sylvia park',
+    'sandringham', 'balmoral', 'avondale', 'meadowbank', 'glendowie', 'kohimarama',
+    'orakei', 'panmure', 'mt wellington', 'mount wellington'
   ],
   'North Shore': [
     'north shore', 'takapuna', 'albany', 'devonport', 'milford', 'birkenhead',
     'glenfield', 'northcote', 'browns bay', 'wairau', 'castor bay', 'mokoia',
-    'beach haven', 'sunnynook', 'rothesay', 'orewa', 'whangaparaoa', 'silverdale'
+    'beach haven', 'sunnynook', 'rothesay', 'orewa', 'whangaparaoa', 'silverdale',
+    'mairangi bay', 'campbells bay', 'torbay', 'hillcrest', 'northcross'
   ],
   'West Auckland': [
     'west auckland', 'henderson', 'titirangi', 'new lynn', 'massey', 'te atatu',
     'hobsonville', 'kumeu', 'piha', 'glen eden', 'kelston', 'huapai', 'muriwai',
-    'swanson', 'ranui', 'waitakere'
+    'swanson', 'ranui', 'waitakere', 'blockhouse bay', 'whenuapai', 'te henga'
   ],
   'South Auckland': [
     'south auckland', 'manukau', 'papatoetoe', 'mangere', 'manurewa', 'papakura',
-    'pukekohe', 'otahuhu', 'takanini', 'karaka', 'weymouth', 'wiri', 'franklin'
+    'pukekohe', 'otahuhu', 'takanini', 'karaka', 'weymouth', 'wiri', 'franklin',
+    'drury', 'mangere bridge', 'otara'
   ],
   'East Auckland': [
     'east auckland', 'howick', 'pakuranga', 'botany', 'half moon bay', 'flat bush',
-    'clevedon', 'dannemora', 'highland park', 'bucklands beach', 'whitford'
+    'clevedon', 'dannemora', 'highland park', 'bucklands beach', 'whitford',
+    'beachlands', 'maraetai', 'cockle bay', 'mellons bay'
   ],
   'Waiheke Island': [
     'waiheke', 'oneroa', 'onetangi', 'surfdale', 'ostend', 'matiatia'
@@ -144,14 +149,22 @@ function getByLabeledBlock($: cheerio.CheerioAPI, labels: string[]): string | un
   }).first();
 
   if (h3Small.length) {
+    // OurAuckland specific: everything inside the parent div except the h3
+    const panelGroup = h3Small.parent();
+    if (panelGroup.hasClass('event-panel__group')) {
+      const clone = panelGroup.clone();
+      clone.find('h3').remove();
+      return cleanText(clone.text());
+    }
+
     // Try to get from next <p> tag
     const nextP = h3Small.next('p');
     if (nextP.length) {
       return cleanText(nextP.text());
     }
     // Try to get from direct text in parent after h3
-    const parent = h3Small.parent();
-    const allText = cleanText(parent.text());
+    const directParent = h3Small.parent();
+    const allText = cleanText(directParent.text());
     const labelText = cleanText(h3Small.text());
     const remaining = allText.replace(labelText, '').trim();
     if (remaining) return remaining;
@@ -214,8 +227,36 @@ export function evaluateWeekendFromDateText(dateText?: string): boolean | undefi
   return undefined;
 }
 
+export function extractLdJson(html: string): any | null {
+  const $ = cheerio.load(html);
+  let data: any = null;
+
+  $('script[type="application/ld+json"]').each((_, elem) => {
+    try {
+      const json = JSON.parse($(elem).html() || '');
+      const items = Array.isArray(json) ? json : [json];
+      const eventObj = items.find((item: any) => 
+        item['@type'] === 'Event' || 
+        (Array.isArray(item['@type']) && item['@type'].includes('Event'))
+      );
+      
+      if (eventObj) {
+        data = eventObj;
+        return false; // break loop
+      }
+      return true;
+    } catch (e) {
+      // ignore parse errors
+      return true;
+    }
+  });
+
+  return data;
+}
+
 export function parseDetailEvent(html: string, detailUrl: string): DetailEventData {
   const $ = cheerio.load(html);
+  const ldJson = extractLdJson(html);
 
   const metaTitle = cleanText($('meta[property="og:title"]').attr('content'));
   const title =
@@ -250,13 +291,13 @@ export function parseDetailEvent(html: string, detailUrl: string): DetailEventDa
     undefined;
 
   return {
-    title,
-    description,
+    title: ldJson?.name || title,
+    description: ldJson?.description || description,
     dateText,
-    locationText,
+    locationText: ldJson?.location?.name || ldJson?.location?.address?.streetAddress || locationText,
     costText,
-    imageUrl: imageUrlRaw ? absolutizeUrl(imageUrlRaw, detailUrl) : undefined,
-    startAtIso: parseDateTextToIso(dateText)
+    imageUrl: ldJson?.image || (imageUrlRaw ? absolutizeUrl(imageUrlRaw, detailUrl) : undefined),
+    startAtIso: ldJson?.startDate || parseDateTextToIso(dateText)
   };
 }
 

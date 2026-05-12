@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent } from '../shared/dedupe';
+import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
 import { extractLdJson, mapAucklandKidsRegion } from './scraper';
 
 const ddbClient = new DynamoDBClient({});
@@ -75,29 +75,44 @@ export const handler = async (event: any) => {
       const regionIds = item.event_type_2 || [];
       const mappedRegion = mapAucklandKidsRegion(regionIds);
 
+      // OPTIMIZATION: Check if event already exists
+      const existingMatch = findMatchingRecord(existingRecords, {
+        source: 'aucklandforkids',
+        sourceEventId,
+        name,
+        datetimeStart,
+        mappedRegion,
+        url: detailUrl,
+        description,
+      });
+
       // 3. Image Processing
-      let cloudfrontUrl = '';
+      let cloudfrontUrl = existingMatch?.image_url || '';
       const sourceImageUrl = item._embedded?.['wp:featuredmedia']?.[0]?.source_url || '';
       
-      if (sourceImageUrl && !dryRun) {
+      if (sourceImageUrl && (!cloudfrontUrl || existingMatch?.source_image_url !== sourceImageUrl)) {
         try {
-          const imgResponse = await fetch(sourceImageUrl);
-          if (imgResponse.ok) {
-            const arrayBuffer = await imgResponse.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const objectKey = `events/kids-${sourceEventId}.jpg`;
-            
-            await s3Client.send(new PutObjectCommand({
-              Bucket: imageBucketName,
-              Key: objectKey,
-              Body: buffer,
-              ContentType: 'image/jpeg',
-            }));
-            cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
+          console.log(`Processing image for kids event ${sourceEventId}: Downloading from ${sourceImageUrl}`);
+          if (!dryRun) {
+            const imgResponse = await fetch(sourceImageUrl);
+            if (imgResponse.ok) {
+              const arrayBuffer = await imgResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              const objectKey = `events/kids-${sourceEventId}.jpg`;
+              
+              await s3Client.send(new PutObjectCommand({
+                Bucket: imageBucketName,
+                Key: objectKey,
+                Body: buffer,
+                ContentType: 'image/jpeg',
+              }));
+              cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
+            }
           }
         } catch (e) {
           console.error(`Image download failed for kids event ${sourceEventId}`, e);
         }
+        await sleep(500);
       }
 
       // 4. Persist
@@ -112,6 +127,7 @@ export const handler = async (event: any) => {
         locationSummary,
         mappedRegion,
         isFree: structuredData.isFree ?? description.toLowerCase().includes('free'), 
+        costText: structuredData.costText,
         imageUrl: cloudfrontUrl || undefined,
         sourceImageUrl: sourceImageUrl || undefined,
         scrapedAt: new Date().toISOString(),

@@ -51,7 +51,8 @@ export class InfrastructureStack extends cdk.Stack {
       entry: path.join(__dirname, '../lambda/cron/index.ts'),
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
-      timeout: cdk.Duration.minutes(15), // Slow fetching allows longer execution
+      timeout: cdk.Duration.minutes(15),
+      memorySize: 512,
       environment: {
         TABLE_NAME: dataTable.tableName,
         SSM_PATH: '/AucklandPlanner/Config', // Path to parameters logic

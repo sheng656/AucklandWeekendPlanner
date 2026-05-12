@@ -2,7 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { SSMClient, GetParametersByPathCommand } from "@aws-sdk/client-ssm";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent } from '../shared/dedupe';
+import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
 
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
@@ -182,7 +182,20 @@ export const handler = async (event: any) => {
     const existingRecords = await loadAllStoredEvents(docClient, tableName);
     
     for (const item of appropriateEvents) {
-      let cloudfrontUrl = '';
+      const mappedRegion = mapToMacroRegion(item.location_summary || "");
+      
+      // OPTIMIZATION: Check if event already exists with same image
+      const existingMatch = findMatchingRecord(existingRecords, {
+        source: 'eventfinda',
+        sourceEventId: String(item.id),
+        name: item.name,
+        datetimeStart: item.datetime_start,
+        mappedRegion,
+        url: item.url,
+        description: item.description,
+      });
+
+      let cloudfrontUrl = existingMatch?.image_url || '';
       let originalImageUrl = "";
 
       if (item.images && item.images.images) {
@@ -201,9 +214,10 @@ export const handler = async (event: any) => {
         }
       }
 
-      if (originalImageUrl) {
+      // Only download/upload image if it's new or missing
+      if (originalImageUrl && (!cloudfrontUrl || existingMatch?.source_image_url !== originalImageUrl)) {
         try {
-            console.log(`Processing event ${item.id}: Downloading from ${originalImageUrl}`);
+            console.log(`Processing image for event ${item.id}: Downloading from ${originalImageUrl}`);
             if (!dryRun) {
               const imgResponse = await fetch(originalImageUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0 (AucklandWeekendPlanner/1.0)' }
@@ -225,16 +239,12 @@ export const handler = async (event: any) => {
               } else {
                 console.error(`Download failed for ${item.id}: ${imgResponse.status}`);
               }
-            } else {
-              console.log(`DRY_RUN would upload image for Eventfinda event ${item.id}`);
             }
           } catch (err) {
             console.error(`Error processing image for ${item.id}:`, err);
           }
-          await sleep(1200); 
+          await sleep(500); // Reduced delay since we are skipping many
         }
-
-      const mappedRegion = mapToMacroRegion(item.location_summary || "");
 
       await persistEventWithDedupe(docClient, tableName || '', existingRecords, {
         source: 'eventfinda',
