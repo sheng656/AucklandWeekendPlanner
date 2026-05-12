@@ -3,6 +3,7 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { SSMClient, GetParametersByPathCommand } from "@aws-sdk/client-ssm";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
+import { sleep, fetchWithRetry, computeUpcomingWeekendRange } from '../shared/utils';
 
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
@@ -108,15 +109,7 @@ export const handler = async (event: any) => {
     
     const eventsToStore = [];
     
-    // Date calculation for upcoming weekend (Friday to Sunday)
-    const today = new Date();
-    const nextFriday = new Date(today);
-    nextFriday.setDate(today.getDate() + ((5 - today.getDay() + 7) % 7));
-    const nextSunday = new Date(nextFriday);
-    nextSunday.setDate(nextFriday.getDate() + 2);
-    
-    const startDateStr = nextFriday.toISOString().split('T')[0];
-    const endDateStr = nextSunday.toISOString().split('T')[0];
+    const { startDate: startDateStr, endDate: endDateStr } = computeUpcomingWeekendRange();
     
     const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,restrictions,images),image:(transforms),transform:(url,transformation_id)';
     
@@ -179,7 +172,10 @@ export const handler = async (event: any) => {
     if (!tableName) {
       throw new Error('TABLE_NAME is required');
     }
-    const existingRecords = await loadAllStoredEvents(docClient, tableName);
+    const existingRecords = await loadAllStoredEvents(docClient, tableName, {
+      start: startDateStr,
+      end: endDateStr
+    });
     
     for (const item of appropriateEvents) {
       const mappedRegion = mapToMacroRegion(item.location_summary || "");
@@ -222,7 +218,7 @@ export const handler = async (event: any) => {
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-              const imgResponse = await fetch(originalImageUrl, {
+              const imgResponse = await fetchWithRetry(originalImageUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0 (AucklandWeekendPlanner/1.0)' },
                 signal: controller.signal
               });
@@ -230,8 +226,8 @@ export const handler = async (event: any) => {
               clearTimeout(timeoutId);
               
               if (imgResponse.ok) {
-                const arrayBuffer = await imgResponse.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
+                let arrayBuffer: any = await imgResponse.arrayBuffer();
+                let buffer: any = Buffer.from(arrayBuffer);
                 const objectKey = `events/${item.id}.jpg`;
                 
                 await s3Client.send(new PutObjectCommand({
@@ -242,9 +238,15 @@ export const handler = async (event: any) => {
                 }));
                 
                 cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
+                // Goal 2: Clear memory explicitly for GC
+                (buffer as any) = null;
+                (arrayBuffer as any) = null;
               } else {
                 console.error(`Download failed for ${item.id}: ${imgResponse.status}`);
               }
+              
+              // Rate limiting / Anti-throttle
+              await sleep(1500); 
             }
           } catch (err: any) {
             if (err.name === 'AbortError') {

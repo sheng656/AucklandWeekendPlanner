@@ -41,9 +41,12 @@ Auckland Weekend Planner is a premium, AI-powered travel assistant designed spec
 - **Storage/CDN**: Amazon S3 + CloudFront (Image Caching).
 - **Infrastructure**: AWS CDK (Infrastructure as Code).
 
-### 🧪 Dev Validation
+### 🧪 Quality Assurance & Validation
+- **Comprehensive Testing**: Full-stack test coverage using **Jest**:
+  - **Backend**: Unit tests for scraper logic, JSON-LD extraction, and the hierarchical source prioritization logic.
+  - **Frontend**: Component testing for the UI layer and utility tests for brand-source mapping.
 - **Dry-run Mode**: Both ingest Lambdas support `INGEST_DRY_RUN=true`, which runs list/detail parsing and dedupe simulation without writing to DynamoDB or uploading images.
-- **48-hour Cadence**: Eventfinda and OurAuckland ingest jobs are scheduled every 48 hours to reduce load and keep free-tier usage low.
+- **Reliability Checks**: Integrated `AbortController` timeouts (15s) and rate-limit delays (1500ms) to ensure robust scraping under network variability.
 
 ## 📂 Repository Layout
 

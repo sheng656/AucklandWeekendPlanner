@@ -1,10 +1,12 @@
 import {
   buildSurfaceFormBody,
-  computeUpcomingWeekendRangeNZ,
   evaluateWeekendFromDateText,
   extractListCandidates,
   parseDetailEvent,
+  extractLdJson,
+  mapToMacroRegion,
 } from '../lambda/ourauckland/scraper';
+import { computeUpcomingWeekendRange } from '../lambda/shared/utils';
 
 describe('ourauckland scraper helpers', () => {
   test('buildSurfaceFormBody keeps area and cost empty', () => {
@@ -17,11 +19,17 @@ describe('ourauckland scraper helpers', () => {
     expect(body.get('SearchDateTo')).toBe('2026-05-17');
   });
 
-  test('computeUpcomingWeekendRangeNZ returns YYYY-MM-DD bounds', () => {
-    const range = computeUpcomingWeekendRangeNZ(new Date('2026-05-11T00:00:00Z'));
+  test('computeUpcomingWeekendRange returns ISO strings', () => {
+    const range = computeUpcomingWeekendRange();
     expect(range.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(range.endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(range.startDate <= range.endDate).toBe(true);
+  });
+
+  test('computeUpcomingWeekendRange is consistent (Sat to Sun)', () => {
+    const ref = new Date('2026-05-11T12:00:00Z'); // Monday
+    const range = computeUpcomingWeekendRange(ref);
+    expect(range.startDate).toBe('2026-05-15'); // Friday
+    expect(range.endDate).toBe('2026-05-17');   // Sunday
   });
 
   test('extractListCandidates gets unique event detail URLs', () => {
@@ -113,5 +121,75 @@ describe('ourauckland scraper helpers', () => {
     expect(result.dateText).toContain('April 2026');
     expect(result.costText).toBe('Free');
     expect(result.description).toContain('microgreens workshop');
+  });
+});
+
+describe('ourauckland scraper specific improvements', () => {
+  test('extractLdJson parses event data correctly', () => {
+    const html = `
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Event",
+        "name": "JSON-LD Event",
+        "startDate": "2026-05-16T10:00:00Z",
+        "endDate": "2026-05-16T15:00:00Z",
+        "location": {
+          "@type": "Place",
+          "name": "Auckland Central Library"
+        }
+      }
+      </script>
+    `;
+    const data = extractLdJson(html);
+    expect(data.name).toBe('JSON-LD Event');
+    expect(data.startDate).toBe('2026-05-16T10:00:00Z');
+    expect(data.endDate).toBe('2026-05-16T15:00:00Z');
+  });
+
+  test('parseDetailEvent includes endAtIso from LD+JSON', () => {
+    const html = `
+      <html>
+        <body>
+          <script type="application/ld+json">
+          {
+            "@type": "Event",
+            "name": "Timed Event",
+            "startDate": "2026-05-16T09:00:00Z",
+            "endDate": "2026-05-16T17:00:00Z"
+          }
+          </script>
+        </body>
+      </html>
+    `;
+    const result = parseDetailEvent(html, 'http://test.com');
+    expect(result.startAtIso).toBe('2026-05-16T09:00:00Z');
+    expect(result.endAtIso).toBe('2026-05-16T17:00:00Z');
+  });
+
+  test('mapToMacroRegion correctly identifies Blockhouse Bay', () => {
+    expect(mapToMacroRegion('Blockhouse Bay Library')).toBe('West Auckland');
+    expect(mapToMacroRegion('578 Blockhouse Bay Road')).toBe('West Auckland');
+    expect(mapToMacroRegion('Britomart Transport Centre')).toBe('Central Auckland');
+    expect(mapToMacroRegion('Takapuna Beach')).toBe('North Shore');
+    expect(mapToMacroRegion('Middle of nowhere')).toBe('Unknown');
+  });
+
+  test('parseDetailEvent handles array image in JSON-LD', () => {
+    const html = `
+      <html>
+        <body>
+          <script type="application/ld+json">
+          {
+            "@type": "Event",
+            "name": "Array Image Event",
+            "image": ["https://test.com/img1.jpg", "https://test.com/img2.jpg"]
+          }
+          </script>
+        </body>
+      </html>
+    `;
+    const result = parseDetailEvent(html, 'http://test.com');
+    expect(result.imageUrl).toBe('https://test.com/img1.jpg');
   });
 });

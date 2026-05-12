@@ -1,9 +1,6 @@
 import * as cheerio from 'cheerio';
 
-export interface WeekendRange {
-  startDate: string;
-  endDate: string;
-}
+import { WeekendRange } from '../shared/utils';
 
 export interface ListEventCandidate {
   title: string;
@@ -35,7 +32,8 @@ const ADULT_KEYWORDS = [
 const REGION_MAPPING: Record<string, string[]> = {
   'Central Auckland': [
     'cbd', 'central', 'ponsonby', 'parnell', 'newmarket', 'mt eden', 'mount eden',
-    'epsom', 'grey lynn', 'pt chev', 'point chevalier', 'mt albert', 'mount albert',
+    'britomart', 'viaduct', 'wynyard', 'epsom', 'grey lynn', 'pt chev',
+    'point chevalier', 'mt albert', 'mount albert',
     'mission bay', 'st heliers', 'remuera', 'onehunga', 'ellerslie', 'greenlane',
     'kingsland', 'grafton', 'newton', 'freemans bay', 'herne bay', 'sylvia park',
     'sandringham', 'balmoral', 'avondale', 'meadowbank', 'glendowie', 'kohimarama',
@@ -69,27 +67,6 @@ const REGION_MAPPING: Record<string, string[]> = {
   ]
 };
 
-export function computeUpcomingWeekendRangeNZ(reference = new Date()): WeekendRange {
-  const nowInNz = new Date(reference.toLocaleString('en-US', { timeZone: 'Pacific/Auckland' }));
-  const day = nowInNz.getDay();
-  const daysUntilSaturday = (6 - day + 7) % 7;
-  const saturday = new Date(nowInNz);
-  saturday.setDate(nowInNz.getDate() + daysUntilSaturday);
-  const sunday = new Date(saturday);
-  sunday.setDate(saturday.getDate() + 1);
-
-  const format = (d: Date): string => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${dd}`;
-  };
-
-  return {
-    startDate: format(saturday),
-    endDate: format(sunday)
-  };
-}
 
 export function buildSurfaceFormBody(page: number, startDate: string, endDate: string): URLSearchParams {
   const body = new URLSearchParams();
@@ -114,6 +91,24 @@ function absolutizeUrl(rawUrl: string, baseUrl: string): string {
   } catch {
     return rawUrl;
   }
+}
+
+function normalizeImageUrl(input: any, detailUrl: string): string | undefined {
+  if (!input) return undefined;
+
+  let raw: string | undefined;
+  if (typeof input === 'string') {
+    raw = input;
+  } else if (Array.isArray(input) && input.length > 0) {
+    // If it's an array, take the first element
+    const first = input[0];
+    raw = typeof first === 'string' ? first : first?.url;
+  } else if (typeof input === 'object') {
+    raw = input.url;
+  }
+
+  if (!raw) return undefined;
+  return absolutizeUrl(raw, detailUrl);
 }
 
 export function extractListCandidates(html: string, baseUrl: string): ListEventCandidate[] {
@@ -299,7 +294,7 @@ export function parseDetailEvent(html: string, detailUrl: string): DetailEventDa
     dateText,
     locationText: ldJson?.location?.name || ldJson?.location?.address?.streetAddress || locationText,
     costText,
-    imageUrl: ldJson?.image || (imageUrlRaw ? absolutizeUrl(imageUrlRaw, detailUrl) : undefined),
+    imageUrl: normalizeImageUrl(ldJson?.image, detailUrl) || (imageUrlRaw ? absolutizeUrl(imageUrlRaw, detailUrl) : undefined),
     startAtIso: ldJson?.startDate || parseDateTextToIso(dateText),
     endAtIso: ldJson?.endDate || undefined,
   };

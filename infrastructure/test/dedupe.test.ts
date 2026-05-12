@@ -132,4 +132,45 @@ describe('shared dedupe policy', () => {
     expect(existingRecords[0].source).toBe('ourauckland-surface');
     expect(send).not.toHaveBeenCalled();
   });
+
+  test('source priority hierarchy: OurAuckland > AucklandKids > Eventfinda', async () => {
+    const send = jest.fn(async () => ({}));
+    const docClient = { send } as any;
+
+    // Start with Eventfinda
+    const records: any[] = [{
+      PK: 'REGION#AUCKLAND',
+      SK: 'EVENT#2026-05-16#e1',
+      source: 'eventfinda',
+      canonicalSource: 'eventfinda',
+      dedupeKey: '2026-05-16::central auckland::test event',
+      name: 'Test Event',
+      datetime_start: '2026-05-16T00:00:00Z',
+      mapped_region: 'Central Auckland',
+    }];
+
+    // Update with Auckland for Kids (should win over Eventfinda)
+    await persistEventWithDedupe(docClient, 'Table', records, {
+      source: 'aucklandforkids',
+      sourceEventId: 'k1',
+      name: 'Test Event',
+      url: 'https://aucklandforkids.co.nz/k1',
+      datetimeStart: '2026-05-16T00:00:00Z',
+      mappedRegion: 'Central Auckland',
+      scrapedAt: '2026-05-12T00:00:00Z',
+    });
+    expect(records[0].canonicalSource).toBe('aucklandforkids');
+
+    // Update with OurAuckland (should win over Auckland for Kids)
+    await persistEventWithDedupe(docClient, 'Table', records, {
+      source: 'ourauckland-surface',
+      sourceEventId: 'o1',
+      name: 'Test Event',
+      url: 'https://ourauckland.co.nz/o1',
+      datetimeStart: '2026-05-16T00:00:00Z',
+      mappedRegion: 'Central Auckland',
+      scrapedAt: '2026-05-12T01:00:00Z',
+    });
+    expect(records[0].canonicalSource).toBe('ourauckland-surface');
+  });
 });

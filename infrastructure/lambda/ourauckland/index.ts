@@ -3,7 +3,6 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import {
   buildSurfaceFormBody,
-  computeUpcomingWeekendRangeNZ,
   deriveSourceEventId,
   estimateIsFree,
   evaluateWeekendFromDateText,
@@ -13,36 +12,13 @@ import {
   parseDetailEvent,
 } from './scraper';
 import { loadAllStoredEvents, persistEventWithDedupe } from '../shared/dedupe';
+import { sleep, fetchWithRetry, computeUpcomingWeekendRange } from '../shared/utils';
 
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 const s3Client = new S3Client({});
 
 const DEFAULT_ENDPOINT = 'https://ourauckland.aucklandcouncil.govt.nz/umbraco/surface/EventSurface/GetSearchResults';
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function fetchWithRetry(url: string, init: RequestInit, attempts = 3): Promise<Response> {
-  let lastError: unknown;
-  for (let i = 1; i <= attempts; i += 1) {
-    try {
-      const response = await fetch(url, init);
-      if (response.ok) return response;
-      lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
-    } catch (err: any) {
-      if (err.name === 'AbortError') throw err; // Don't retry if manually aborted
-      lastError = err;
-    }
-
-    if (i < attempts) {
-      const backoffMs = i * 1000;
-      await sleep(backoffMs);
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error('Request failed after retries');
-}
 
 async function uploadImageToS3(imageUrl: string, sourceEventId: string): Promise<string> {
   const bucket = process.env.IMAGE_BUCKET_NAME;
@@ -62,8 +38,8 @@ async function uploadImageToS3(imageUrl: string, sourceEventId: string): Promise
       2,
     );
 
-    const arrayBuffer = await imgResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    let arrayBuffer: any = await imgResponse.arrayBuffer();
+    let buffer: any = Buffer.from(arrayBuffer);
     const objectKey = `events/ourauckland-${sourceEventId}.jpg`;
 
     await s3Client.send(new PutObjectCommand({
@@ -72,6 +48,10 @@ async function uploadImageToS3(imageUrl: string, sourceEventId: string): Promise
       Body: buffer,
       ContentType: imgResponse.headers.get('content-type') || 'image/jpeg',
     }));
+
+    // Goal 2: Clear memory explicitly for GC
+    (buffer as any) = null;
+    (arrayBuffer as any) = null;
 
     return `https://${cloudfrontDomain}/${objectKey}`;
   } catch (err: any) {
@@ -100,12 +80,15 @@ export const handler = async (): Promise<{ statusCode: number; body: string }> =
     throw new Error('TABLE_NAME is required');
   }
 
-  const { startDate, endDate } = computeUpcomingWeekendRangeNZ();
+  const { startDate, endDate } = computeUpcomingWeekendRange();
   console.log(`OurAuckland ingest started for weekend ${startDate} to ${endDate}`);
 
   const allCandidates: ReturnType<typeof extractListCandidates> = [];
   const pageFingerprints = new Set<string>();
-  const existingRecords = await loadAllStoredEvents(docClient, tableName);
+  const existingRecords = await loadAllStoredEvents(docClient, tableName, {
+    start: startDate,
+    end: endDate
+  });
 
   for (let page = 1; page <= maxPages; page += 1) {
     const body = buildSurfaceFormBody(page, startDate, endDate);

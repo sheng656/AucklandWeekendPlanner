@@ -2,15 +2,12 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
+import { sleep, fetchWithRetry, computeUpcomingWeekendRange } from '../shared/utils';
 import { extractLdJson, mapAucklandKidsRegion } from './scraper';
 
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 const s3Client = new S3Client({});
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export const handler = async (event: any) => {
   console.log("Starting Auckland for Kids Ingest...");
@@ -25,10 +22,14 @@ export const handler = async (event: any) => {
       throw new Error('TABLE_NAME is required');
     }
 
-    const existingRecords = await loadAllStoredEvents(docClient, tableName);
+    const { startDate, endDate } = computeUpcomingWeekendRange();
+    const existingRecords = await loadAllStoredEvents(docClient, tableName, {
+      start: startDate,
+      end: endDate
+    });
 
     // Fetch recent events from Auckland for Kids WP API
-    const kidsResponse = await fetch(`https://www.aucklandforkids.co.nz/wp-json/wp/v2/ajde_events?per_page=30&_embed`);
+    const kidsResponse = await fetchWithRetry(`https://www.aucklandforkids.co.nz/wp-json/wp/v2/ajde_events?per_page=30&_embed`);
     if (!kidsResponse.ok) {
       throw new Error(`Auckland for Kids API failed: ${kidsResponse.status}`);
     }
@@ -43,7 +44,7 @@ export const handler = async (event: any) => {
       // 1. Fetch detail page for LD+JSON
       let structuredData = null;
       try {
-        const detailRes = await fetch(detailUrl, { headers: { 'User-Agent': 'AucklandWeekendPlanner/1.0' } });
+        const detailRes = await fetchWithRetry(detailUrl, { headers: { 'User-Agent': 'AucklandWeekendPlanner/1.0' } });
         if (detailRes.ok) {
           const html = await detailRes.text();
           structuredData = extractLdJson(html);
@@ -97,15 +98,15 @@ export const handler = async (event: any) => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-            const imgResponse = await fetch(sourceImageUrl, {
+            const imgResponse = await fetchWithRetry(sourceImageUrl, {
               signal: controller.signal
             });
             
             clearTimeout(timeoutId);
 
             if (imgResponse.ok) {
-              const arrayBuffer = await imgResponse.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
+              let arrayBuffer: any = await imgResponse.arrayBuffer();
+              let buffer: any = Buffer.from(arrayBuffer);
               const objectKey = `events/kids-${sourceEventId}.jpg`;
               
               await s3Client.send(new PutObjectCommand({
@@ -115,7 +116,14 @@ export const handler = async (event: any) => {
                 ContentType: 'image/jpeg',
               }));
               cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
+              
+              // Goal 2: Clear memory explicitly for GC
+              (buffer as any) = null;
+              (arrayBuffer as any) = null;
             }
+            
+            // Goal 6: Increase delay to 1.5s
+            await sleep(1500);
           }
         } catch (e: any) {
           if (e.name === 'AbortError') {

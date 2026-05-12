@@ -235,18 +235,33 @@ function mergeSources(existing: SourceName[] | undefined, incoming: SourceName):
   return Array.from(merged);
 }
 
-export function loadAllStoredEvents(docClient: DynamoDBDocumentClient, tableName: string): Promise<StoredEventItem[]> {
+
+
+export function loadAllStoredEvents(
+  docClient: DynamoDBDocumentClient, 
+  tableName: string,
+  dateRange?: { start: string; end: string }
+): Promise<StoredEventItem[]> {
   return (async () => {
     const items: StoredEventItem[] = [];
     let lastEvaluatedKey: Record<string, unknown> | undefined;
 
     do {
-      const response = await docClient.send(new QueryCommand({
+      const queryParams: any = {
         TableName: tableName,
         KeyConditionExpression: 'PK = :pk',
         ExpressionAttributeValues: { ':pk': 'REGION#AUCKLAND' },
         ExclusiveStartKey: lastEvaluatedKey,
-      }));
+      };
+
+      if (dateRange) {
+        queryParams.KeyConditionExpression += ' AND SK BETWEEN :start AND :end';
+        queryParams.ExpressionAttributeValues[':start'] = `EVENT#${dateRange.start}`;
+        // Append \uffff to ensure we get all events for the end day (including different times/IDs)
+        queryParams.ExpressionAttributeValues[':end'] = `EVENT#${dateRange.end}\uffff`;
+      }
+
+      const response = await docClient.send(new QueryCommand(queryParams));
 
       if (response.Items?.length) {
         items.push(...(response.Items as StoredEventItem[]));
