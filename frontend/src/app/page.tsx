@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
@@ -112,6 +112,8 @@ export default function Home() {
     slotIdx: number;
     actIdx: number;
   } | null>(null);
+
+  const moreEventsRef = useRef<HTMLDivElement>(null);
 
   // Weather data for preference hints
   const [weatherForecast, setWeatherForecast] = useState<WeatherForecast[]>([]);
@@ -241,6 +243,11 @@ export default function Home() {
     }
     setSwappingSlot({ dayIdx, slotIdx, actIdx });
     setMoreEventsOpen(true);
+
+    // Smooth scroll to event selection
+    setTimeout(() => {
+      moreEventsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   const handleSelectEvent = useCallback(
@@ -501,14 +508,16 @@ export default function Home() {
                   })}
 
                   {/* More Events */}
-                  <MoreEvents
-                    events={displayEvents}
-                    isOpen={moreEventsOpen}
-                    onToggle={() => setMoreEventsOpen(!moreEventsOpen)}
-                    swappingActive={swappingSlot !== null}
-                    onSelectEvent={handleSelectEvent}
-                    selectedRegions={region}
-                  />
+                  <div ref={moreEventsRef}>
+                    <MoreEvents
+                      events={displayEvents}
+                      isOpen={moreEventsOpen}
+                      onToggle={() => setMoreEventsOpen(!moreEventsOpen)}
+                      swappingActive={swappingSlot !== null}
+                      onSelectEvent={handleSelectEvent}
+                      selectedRegions={region}
+                    />
+                  </div>
 
                   {/* Actions */}
                   <div className="flex items-center justify-between flex-wrap gap-3 mt-2">
