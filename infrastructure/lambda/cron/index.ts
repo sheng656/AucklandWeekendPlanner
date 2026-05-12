@@ -118,7 +118,7 @@ export const handler = async (event: any) => {
     const startDateStr = nextFriday.toISOString().split('T')[0];
     const endDateStr = nextSunday.toISOString().split('T')[0];
     
-    const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,images),image:(transforms),transform:(url,transformation_id)';
+    const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,restrictions,images),image:(transforms),transform:(url,transformation_id)';
     
     const allAucklandEvents: any[] = [];
     let currentOffset = 0;
@@ -219,9 +219,15 @@ export const handler = async (event: any) => {
         try {
             console.log(`Processing image for event ${item.id}: Downloading from ${originalImageUrl}`);
             if (!dryRun) {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
               const imgResponse = await fetch(originalImageUrl, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (AucklandWeekendPlanner/1.0)' }
+                headers: { 'User-Agent': 'Mozilla/5.0 (AucklandWeekendPlanner/1.0)' },
+                signal: controller.signal
               });
+              
+              clearTimeout(timeoutId);
               
               if (imgResponse.ok) {
                 const arrayBuffer = await imgResponse.arrayBuffer();
@@ -240,10 +246,14 @@ export const handler = async (event: any) => {
                 console.error(`Download failed for ${item.id}: ${imgResponse.status}`);
               }
             }
-          } catch (err) {
-            console.error(`Error processing image for ${item.id}:`, err);
+          } catch (err: any) {
+            if (err.name === 'AbortError') {
+              console.error(`Image download timed out for event ${item.id}`);
+            } else {
+              console.error(`Error processing image for ${item.id}:`, err);
+            }
           }
-          await sleep(500); // Reduced delay since we are skipping many
+          await sleep(1500); // Increased sleep to prevent rate limiting/throttling
         }
 
       await persistEventWithDedupe(docClient, tableName || '', existingRecords, {
@@ -259,6 +269,7 @@ export const handler = async (event: any) => {
         isFree: item.is_free,
         imageUrl: cloudfrontUrl || undefined,
         sourceImageUrl: originalImageUrl || undefined,
+        costText: item.restrictions,
         scrapedAt: new Date().toISOString(),
       }, { dryRun });
     }

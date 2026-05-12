@@ -31,7 +31,8 @@ async function fetchWithRetry(url: string, init: RequestInit, attempts = 3): Pro
       const response = await fetch(url, init);
       if (response.ok) return response;
       lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') throw err; // Don't retry if manually aborted
       lastError = err;
     }
 
@@ -48,10 +49,16 @@ async function uploadImageToS3(imageUrl: string, sourceEventId: string): Promise
   const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN;
   if (!bucket || !cloudfrontDomain) return '';
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
   try {
     const imgResponse = await fetchWithRetry(
       imageUrl,
-      { headers: { 'User-Agent': 'AucklandWeekendPlanner/1.0' } },
+      { 
+        headers: { 'User-Agent': 'AucklandWeekendPlanner/1.0' },
+        signal: controller.signal
+      },
       2,
     );
 
@@ -67,9 +74,15 @@ async function uploadImageToS3(imageUrl: string, sourceEventId: string): Promise
     }));
 
     return `https://${cloudfrontDomain}/${objectKey}`;
-  } catch (err) {
-    console.error('Image upload failed for event', sourceEventId, err);
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.error(`Image upload timed out for event ${sourceEventId}`);
+    } else {
+      console.error('Image upload failed for event', sourceEventId, err);
+    }
     return '';
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

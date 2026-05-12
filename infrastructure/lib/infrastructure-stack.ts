@@ -52,7 +52,7 @@ export class InfrastructureStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.minutes(15),
-      memorySize: 512,
+      memorySize: 1024,
       environment: {
         TABLE_NAME: dataTable.tableName,
         SSM_PATH: '/AucklandPlanner/Config', // Path to parameters logic
@@ -89,8 +89,8 @@ export class InfrastructureStack extends cdk.Stack {
         CLOUDFRONT_DOMAIN: distribution.distributionDomainName,
         OURAUCKLAND_SURFACE_ENDPOINT: 'https://ourauckland.aucklandcouncil.govt.nz/umbraco/surface/EventSurface/GetSearchResults',
         OURAUCKLAND_TIMEOUT_MS: '15000',
-        OURAUCKLAND_LIST_DELAY_MS: '300',
-        OURAUCKLAND_DETAIL_DELAY_MS: '300',
+        OURAUCKLAND_LIST_DELAY_MS: '500',
+        OURAUCKLAND_DETAIL_DELAY_MS: '1500',
         OURAUCKLAND_MAX_PAGES: '12',
         OURAUCKLAND_MAX_DETAILS_PER_RUN: '300',
       },

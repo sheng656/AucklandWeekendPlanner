@@ -94,7 +94,15 @@ export const handler = async (event: any) => {
         try {
           console.log(`Processing image for kids event ${sourceEventId}: Downloading from ${sourceImageUrl}`);
           if (!dryRun) {
-            const imgResponse = await fetch(sourceImageUrl);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+            const imgResponse = await fetch(sourceImageUrl, {
+              signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+
             if (imgResponse.ok) {
               const arrayBuffer = await imgResponse.arrayBuffer();
               const buffer = Buffer.from(arrayBuffer);
@@ -109,10 +117,14 @@ export const handler = async (event: any) => {
               cloudfrontUrl = `https://${cloudfrontDomain}/${objectKey}`;
             }
           }
-        } catch (e) {
-          console.error(`Image download failed for kids event ${sourceEventId}`, e);
+        } catch (e: any) {
+          if (e.name === 'AbortError') {
+            console.error(`Image download timed out for kids event ${sourceEventId}`);
+          } else {
+            console.error(`Image download failed for kids event ${sourceEventId}`, e);
+          }
         }
-        await sleep(500);
+        await sleep(1500);
       }
 
       // 4. Persist
