@@ -1,3 +1,37 @@
+/**
+ * Decodes common HTML entities found in scraped content
+ */
+export function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#x2B;/g, '+')
+    .replace(/&#xA0;/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#x101;/g, 'a') // Toi o Tamaki handling
+    .replace(/&#x113;/g, 'e')
+    .replace(/&#x12B;/g, 'i')
+    .replace(/&#x14D;/g, 'o')
+    .replace(/&#x16B;/g, 'u')
+    .replace(/&#x[0-9a-fA-F]+;/g, (match) => {
+       // Generic hex entities handling if needed, or just remove
+       return match; 
+    });
+}
+
+/**
+ * Cleans whitespace, decodes entities, and optionally truncates text
+ */
+export function cleanText(input?: string | null, maxLength?: number): string {
+  if (!input) return '';
+  let cleaned = decodeHtmlEntities(input)
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  if (maxLength && cleaned.length > maxLength) {
+    return cleaned.substring(0, maxLength) + '...';
+  }
+  return cleaned;
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

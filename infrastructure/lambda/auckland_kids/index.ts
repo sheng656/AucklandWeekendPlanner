@@ -2,7 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
-import { sleep, fetchWithRetry, computeUpcomingWeekendRange } from '../shared/utils';
+import { sleep, fetchWithRetry, computeUpcomingWeekendRange, cleanText } from '../shared/utils';
 import { extractLdJson, mapAucklandKidsRegion } from './scraper';
 
 const ddbClient = new DynamoDBClient({});
@@ -59,19 +59,19 @@ export const handler = async (event: any) => {
       }
 
       // 2. Map fields
-      const name = structuredData.name || item.title.rendered;
-      const description = item.content.rendered.replace(/<[^>]*>/g, '').slice(0, 500); 
+      const name = cleanText(structuredData.name || item.title.rendered);
+      const description = cleanText(item.content.rendered.replace(/<[^>]*>/g, ''), 200); 
       
       if (!isAppropriateEvent({ name, description })) {
         console.log(`Skipping inappropriate event: ${name}`);
         continue;
       }
 
-      const datetimeStart = structuredData.startDate;
-      const datetimeEnd = structuredData.endDate;
+      const datetimeStart = cleanText(structuredData.startDate);
+      const datetimeEnd = cleanText(structuredData.endDate);
       
       const locParts = [structuredData.locationName, structuredData.streetAddress].filter(Boolean);
-      const locationSummary = locParts.length > 0 ? locParts.join(', ') : "Auckland";
+      const locationSummary = cleanText(locParts.length > 0 ? locParts.join(', ') : "Auckland");
       
       const regionIds = item.event_type_2 || [];
       const mappedRegion = mapAucklandKidsRegion(regionIds);

@@ -3,7 +3,7 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { SSMClient, GetParametersByPathCommand } from "@aws-sdk/client-ssm";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
-import { sleep, fetchWithRetry, computeUpcomingWeekendRange } from '../shared/utils';
+import { sleep, fetchWithRetry, computeUpcomingWeekendRange, cleanText } from '../shared/utils';
 import { mapToMacroRegion } from '../shared/regions';
 
 const ddbClient = new DynamoDBClient({});
@@ -214,7 +214,8 @@ export const handler = async (event: any) => {
         }
 
       // Handle cost_text intelligently
-      let costText = item.is_free ? 'Free' : (item.restrictions || '');
+      let costText = item.is_free ? 'Free' : 'Paid';
+      let priceDetail = '';
       
       if (!item.is_free && item.admission_prices && item.admission_prices.admission_prices) {
         const prices = Array.isArray(item.admission_prices.admission_prices) 
@@ -222,32 +223,40 @@ export const handler = async (event: any) => {
           : [item.admission_prices.admission_prices];
           
         if (prices.length > 0) {
-          // Format first price or summary
           const p = prices[0];
           if (p.price === 0) {
-            costText = 'Free';
+            priceDetail = 'Free';
           } else if (p.price && p.name) {
-            costText = `${p.name}: $${p.price}`;
+            priceDetail = `${p.name}: $${p.price}`;
           } else if (p.price) {
-            costText = `$${p.price}`;
+            priceDetail = `$${p.price}`;
           }
         }
+      }
+
+      if (priceDetail) {
+        costText = priceDetail;
+      }
+
+      // Append restrictions (like RP18, All Ages) as supplementary info if present
+      if (item.restrictions && item.restrictions !== costText) {
+        costText = `${costText} (${item.restrictions})`;
       }
 
       await persistEventWithDedupe(docClient, tableName || '', existingRecords, {
         source: 'eventfinda',
         sourceEventId: String(item.id),
-        name: item.name,
-        description: item.description,
+        name: cleanText(item.name),
+        description: cleanText(item.description, 200),
         url: item.url,
-        datetimeStart: item.datetime_start,
-        datetimeEnd: item.datetime_end,
-        locationSummary: item.location_summary || 'Unknown Location',
+        datetimeStart: cleanText(item.datetime_start),
+        datetimeEnd: item.datetime_end ? cleanText(item.datetime_end) : undefined,
+        locationSummary: cleanText(item.location_summary || 'Unknown Location'),
         mappedRegion,
         isFree: item.is_free,
         imageUrl: cloudfrontUrl || undefined,
         sourceImageUrl: originalImageUrl || undefined,
-        costText: costText,
+        costText: cleanText(costText),
         scrapedAt: new Date().toISOString(),
       }, { dryRun });
     }

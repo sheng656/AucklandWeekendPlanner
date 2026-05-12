@@ -1,7 +1,26 @@
 import * as cheerio from 'cheerio';
-
-import { WeekendRange } from '../shared/utils';
+import { WeekendRange, cleanText as sharedCleanText } from '../shared/utils';
 import { mapToMacroRegion as sharedMapToMacroRegion } from '../shared/regions';
+
+// Helper to ensure dates are clean YYYY-MM-DD HH:mm:ss
+function formatToCleanDateTime(isoString: string): string {
+  try {
+    // Decode any potential HTML entities that might have leaked into the ISO string
+    const decoded = isoString.replace(/&#x2B;/g, '+');
+    const date = new Date(decoded);
+    if (isNaN(date.getTime())) return decoded;
+    
+    const Y = date.getFullYear();
+    const M = String(date.getMonth() + 1).padStart(2, '0');
+    const D = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    const m = String(date.getMinutes()).padStart(2, '0');
+    const s = String(date.getSeconds()).padStart(2, '0');
+    return `${Y}-${M}-${D} ${h}:${m}:${s}`;
+  } catch {
+    return isoString;
+  }
+}
 
 export interface ListEventCandidate {
   title: string;
@@ -44,8 +63,8 @@ export function buildSurfaceFormBody(page: number, startDate: string, endDate: s
   return body;
 }
 
-function cleanText(input?: string | null): string {
-  return (input || '').replace(/\s+/g, ' ').trim();
+function cleanText(input?: string | null, maxLength?: number): string {
+  return sharedCleanText(input, maxLength);
 }
 
 function absolutizeUrl(rawUrl: string, baseUrl: string): string {
@@ -252,14 +271,14 @@ export function parseDetailEvent(html: string, detailUrl: string): DetailEventDa
     undefined;
 
   return {
-    title: ldJson?.name || title,
-    description: ldJson?.description || description,
+    title: cleanText(ldJson?.name || title),
+    description: cleanText(ldJson?.description || description, 200),
     dateText,
-    locationText: ldJson?.location?.name || ldJson?.location?.address?.streetAddress || locationText,
-    costText,
+    locationText: cleanText(ldJson?.location?.name || ldJson?.location?.address?.streetAddress || locationText),
+    costText: cleanText(costText),
     imageUrl: normalizeImageUrl(ldJson?.image, detailUrl) || (imageUrlRaw ? absolutizeUrl(imageUrlRaw, detailUrl) : undefined),
-    startAtIso: ldJson?.startDate || parseDateTextToIso(dateText),
-    endAtIso: ldJson?.endDate || undefined,
+    startAtIso: formatToCleanDateTime(ldJson?.startDate || parseDateTextToIso(dateText) || ''),
+    endAtIso: ldJson?.endDate ? formatToCleanDateTime(ldJson?.endDate) : undefined,
   };
 }
 
