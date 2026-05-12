@@ -207,7 +207,7 @@ export const handler = async (): Promise<{ statusCode: number; body: string }> =
         description,
         url: candidate.detailUrl,
         datetimeStart: eventStart,
-        datetimeEnd: null,
+        datetimeEnd: parsed.endAtIso || null,
         locationSummary,
         mappedRegion,
         isFree,

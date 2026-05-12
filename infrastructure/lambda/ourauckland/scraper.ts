@@ -20,6 +20,7 @@ export interface DetailEventData {
   costText?: string;
   imageUrl?: string;
   startAtIso?: string;
+  endAtIso?: string;
 }
 
 const WEEKDAY_WEEKEND_REGEX = /\b(sat(?:urday)?|sun(?:day)?)\b/i;
@@ -44,22 +45,24 @@ const REGION_MAPPING: Record<string, string[]> = {
     'north shore', 'takapuna', 'albany', 'devonport', 'milford', 'birkenhead',
     'glenfield', 'northcote', 'browns bay', 'wairau', 'castor bay', 'mokoia',
     'beach haven', 'sunnynook', 'rothesay', 'orewa', 'whangaparaoa', 'silverdale',
-    'mairangi bay', 'campbells bay', 'torbay', 'hillcrest', 'northcross'
+    'mairangi bay', 'campbells bay', 'torbay', 'hillcrest', 'northcross',
+    'warkworth', 'matakana', 'snells beach', 'wellsford', 'stanley point'
   ],
   'West Auckland': [
     'west auckland', 'henderson', 'titirangi', 'new lynn', 'massey', 'te atatu',
     'hobsonville', 'kumeu', 'piha', 'glen eden', 'kelston', 'huapai', 'muriwai',
-    'swanson', 'ranui', 'waitakere', 'blockhouse bay', 'whenuapai', 'te henga'
+    'swanson', 'ranui', 'waitakere', 'blockhouse bay', 'whenuapai', 'te henga',
+    'helensville', 'parakai', 'riverhead', 'taupaki'
   ],
   'South Auckland': [
     'south auckland', 'manukau', 'papatoetoe', 'mangere', 'manurewa', 'papakura',
     'pukekohe', 'otahuhu', 'takanini', 'karaka', 'weymouth', 'wiri', 'franklin',
-    'drury', 'mangere bridge', 'otara'
+    'drury', 'mangere bridge', 'otara', 'waiuku', 'pokeno', 'tuakau', 'clarks beach'
   ],
   'East Auckland': [
     'east auckland', 'howick', 'pakuranga', 'botany', 'half moon bay', 'flat bush',
     'clevedon', 'dannemora', 'highland park', 'bucklands beach', 'whitford',
-    'beachlands', 'maraetai', 'cockle bay', 'mellons bay'
+    'beachlands', 'maraetai', 'cockle bay', 'mellons bay', 'sunnyhills', 'farm cove'
   ],
   'Waiheke Island': [
     'waiheke', 'oneroa', 'onetangi', 'surfdale', 'ostend', 'matiatia'
@@ -297,7 +300,8 @@ export function parseDetailEvent(html: string, detailUrl: string): DetailEventDa
     locationText: ldJson?.location?.name || ldJson?.location?.address?.streetAddress || locationText,
     costText,
     imageUrl: ldJson?.image || (imageUrlRaw ? absolutizeUrl(imageUrlRaw, detailUrl) : undefined),
-    startAtIso: ldJson?.startDate || parseDateTextToIso(dateText)
+    startAtIso: ldJson?.startDate || parseDateTextToIso(dateText),
+    endAtIso: ldJson?.endDate || undefined,
   };
 }
 
