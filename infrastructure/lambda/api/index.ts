@@ -1,6 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
+import { computeUpcomingWeekendRange } from '../shared/utils';
 
 // Adult content keywords for Family mode pre-filtering
 const ADULT_KEYWORDS = [
@@ -24,17 +25,22 @@ export const handler = async (event: any) => {
     
     console.log("Request params:", { audience, budget, tripDays, region });
     
-    // 1. Fetch pre-warmed data from DynamoDB
+    // 1. Fetch pre-warmed data from DynamoDB for the upcoming weekend
     const ddbClient = new DynamoDBClient({});
     const docClient = DynamoDBDocumentClient.from(ddbClient);
     
+    const { startDate, endDate } = computeUpcomingWeekendRange();
+    console.log(`Querying events for weekend: ${startDate} to ${endDate}`);
+
     const query = new QueryCommand({
       TableName: process.env.TABLE_NAME,
-      KeyConditionExpression: "PK = :pk",
+      KeyConditionExpression: "PK = :pk AND SK BETWEEN :start AND :end",
       ExpressionAttributeValues: {
-        ":pk": "REGION#AUCKLAND"
+        ":pk": "REGION#AUCKLAND",
+        ":start": `EVENT#${startDate}`,
+        ":end": `EVENT#${endDate}\uffff`
       },
-      Limit: 100 // Increased limit to allow for filtering
+      Limit: 100 
     });
     
     console.log("Querying DynamoDB table:", process.env.TABLE_NAME);
