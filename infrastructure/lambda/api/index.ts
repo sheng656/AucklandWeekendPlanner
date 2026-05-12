@@ -88,11 +88,21 @@ The user is open to exploring any area in Auckland. Try to group activities geog
       console.log(`Filtered out ${beforeWeekendCount - events.length} non-weekend events`);
     }
 
-    // Family mode: extra keyword filtering on input events
+    // Family mode: extra keyword filtering and source-based prioritization
     if (audience === 'Family') {
       const beforeCount = events.length;
       events = events.filter((e: any) => isAppropriateForFamily(e));
       bedrockEvents = bedrockEvents.filter((e: any) => isAppropriateForFamily(e));
+      
+      // Prioritize 'aucklandforkids' in the list sent to Bedrock
+      bedrockEvents.sort((a, b) => {
+        const aIsKids = (a.source === 'aucklandforkids' || (a.seenInSources && a.seenInSources.includes('aucklandforkids')));
+        const bIsKids = (b.source === 'aucklandforkids' || (b.seenInSources && b.seenInSources.includes('aucklandforkids')));
+        if (aIsKids && !bIsKids) return -1;
+        if (!aIsKids && bIsKids) return 1;
+        return 0;
+      });
+
       const filtered = beforeCount - events.length;
       if (filtered > 0) {
         console.log(`Family mode: filtered out ${filtered} inappropriate events`);
@@ -136,14 +146,17 @@ The user is open to exploring any area in Auckland. Try to group activities geog
       ? `AVAILABLE AUCKLAND EVENTS THIS WEEKEND:\n` + bedrockEvents.map((e: any) => {
           const shortDesc = e.description ? e.description.substring(0, 150).replace(/\n/g, ' ') + '...' : 'No description';
           const regionLabel = e.mapped_region || "Unknown";
-          return `- [ID: ${e.SK.split('#')[2]}] ${e.name} | Time: ${e.datetime_start} | Loc: ${e.location_summary || 'Auckland'} (Region: ${regionLabel}) | Free: ${e.is_free ? 'Yes' : 'No'} | Desc: ${shortDesc}`;
+          const sourceLabel = e.source || (e.seenInSources && e.seenInSources[0]) || 'general';
+          return `- [ID: ${e.SK.split('#')[2]}] ${e.name} | Time: ${e.datetime_start} | Loc: ${e.location_summary || 'Auckland'} (Region: ${regionLabel}) | Source: ${sourceLabel} | Free: ${e.is_free ? 'Yes' : 'No'} | Desc: ${shortDesc}`;
         }).join('\n')
       : 'Note: No specific event data is currently available. Please provide general Auckland recommendations.';
 
     // Build audience-specific instructions
     let audienceInstruction = '';
     if (audience === 'Family') {
-      audienceInstruction = `\nFAMILY-FRIENDLY REQUIREMENT: This itinerary is for a family including children. ONLY recommend family-friendly, age-appropriate events and activities. Exclude ALL adult-oriented, nightlife, bar, or mature content. Prioritize parks, museums, markets, outdoor activities, and child-friendly venues.`;
+      audienceInstruction = `\nFAMILY-FRIENDLY REQUIREMENT: This itinerary is for a family including children. ONLY recommend family-friendly, age-appropriate events and activities. Exclude ALL adult-oriented, nightlife, bar, or mature content. 
+PRIORITIZATION: Events with "Source: aucklandforkids" are specifically curated for children and families. You MUST prioritize these events over others when creating the plan.
+General priorities: parks, museums, markets, outdoor activities, and child-friendly venues.`;
     }
 
     // Build tripDays constraint

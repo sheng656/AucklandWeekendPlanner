@@ -71,6 +71,8 @@ export interface PersistEventOptions {
 }
 
 const OUR_AUCKLAND_SOURCE = 'ourauckland-surface';
+const KIDS_SOURCE = 'aucklandforkids';
+const EVENTFINDA_SOURCE = 'eventfinda';
 
 function cleanText(value?: string): string {
   return (value || '').trim().replace(/\s+/g, ' ');
@@ -209,11 +211,20 @@ export function findMatchingRecord(records: StoredEventItem[], incoming: IngestE
 function canonicalWinner(existing: StoredEventItem, incoming: IngestEventInput): 'existing' | 'incoming' {
   const existingSource = inferSource(existing);
   
-  // If it's the same source, always allow the new scrape to update attributes
+  // 1. Same source always allows update
   if (incoming.source === existingSource) return 'incoming';
   
-  if (incoming.source === OUR_AUCKLAND_SOURCE && existingSource !== OUR_AUCKLAND_SOURCE) return 'incoming';
-  if (existingSource === OUR_AUCKLAND_SOURCE && incoming.source !== OUR_AUCKLAND_SOURCE) return 'existing';
+  // 2. Hierarchy: OurAuckland > AucklandKids > Eventfinda
+  // Case: OurAuckland wins over everything
+  if (incoming.source === OUR_AUCKLAND_SOURCE) return 'incoming';
+  if (existingSource === OUR_AUCKLAND_SOURCE) return 'existing';
+  
+  // Case: AucklandKids wins over everything else (like Eventfinda)
+  if (incoming.source === KIDS_SOURCE) return 'incoming';
+  if (existingSource === KIDS_SOURCE) return 'existing';
+  
+  // Default: Eventfinda vs others, or unknown. Stick with existing or allow Eventfinda
+  if (incoming.source === EVENTFINDA_SOURCE) return 'incoming';
   
   return 'existing';
 }
