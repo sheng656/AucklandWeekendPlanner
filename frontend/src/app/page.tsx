@@ -308,20 +308,20 @@ export default function Home() {
   const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
 
   return (
-    <main className="min-h-screen mesh-bg p-4 md:p-8 font-sans flex flex-col">
-      <div className="max-w-3xl mx-auto w-full flex flex-col gap-5 flex-1">
+    <main className="min-h-screen mesh-bg p-3 md:p-8 font-sans flex flex-col">
+      <div className="max-w-3xl mx-auto w-full flex flex-col gap-3 md:gap-5 flex-1">
         {/* ===== HEADER ===== */}
         <motion.header
           initial={{ y: -40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={spring}
-          className="flex justify-between items-center glass-panel p-5 shrink-0"
+          className="flex justify-between items-center glass-panel p-3 md:p-5 shrink-0"
         >
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base sm:text-xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent leading-tight tracking-tighter sm:tracking-normal">
               Auckland Weekend Planner
             </h1>
-            <span className="hidden md:inline-block text-[10px] font-bold bg-gradient-to-r from-blue-500 to-cyan-400 text-white px-2 py-0.5 rounded-md">
+            <span className="hidden sm:inline-block text-[10px] font-bold bg-gradient-to-r from-blue-500 to-cyan-400 text-white px-2 py-0.5 rounded-md">
               BETA V2
             </span>
           </div>
@@ -338,28 +338,28 @@ export default function Home() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.97, y: -15 }}
               transition={spring}
-              className="glass-panel p-6 flex flex-col relative overflow-hidden"
+              className="glass-panel p-3 md:p-6 flex flex-col relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-600" />
 
-              <div className="mb-5 mt-1">
-                <h2 className="text-xl font-bold flex items-center gap-2 text-zinc-800">
-                  <Sparkles className="w-5 h-5 text-blue-500" />
+              <div className="mb-2 md:mb-5 mt-0.5">
+                <h2 className="text-base md:text-xl font-bold flex items-center gap-2 text-zinc-800">
+                  <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
                   Design Your Perfect Weekend
                 </h2>
-                <p className="text-sm text-zinc-500 mt-1">
+                <p className="text-[11px] md:text-sm text-zinc-500 mt-0.5">
                   Set your preferences and let AI craft a personalized itinerary
                   with real events.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-2 md:mb-6 preference-grid">
                 {/* Who */}
                 <div className="preference-card">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-600 mb-2.5">
+                  <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
                     <Users className="w-4 h-4 text-blue-500" /> Who&apos;s going?
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-4 gap-1.5">
                     {audienceOptions.map((o) => (
                       <button
                         key={o}
@@ -374,10 +374,10 @@ export default function Home() {
 
                 {/* Budget */}
                 <div className="preference-card">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-600 mb-2.5">
+                  <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
                     <Wallet className="w-4 h-4 text-blue-500" /> Budget Level
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-4 gap-1.5">
                     {budgetOptions.map((o) => (
                       <button
                         key={o}
@@ -392,10 +392,10 @@ export default function Home() {
 
                 {/* When — with weather hints */}
                 <div className="preference-card">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-600 mb-2.5">
+                  <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
                     <CalendarDays className="w-4 h-4 text-blue-500" /> When?
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {tripDayOptions.map((o) => {
                       const hint = getWeatherHint(weatherForecast, o);
                       return (
@@ -419,10 +419,10 @@ export default function Home() {
 
                 {/* Where */}
                 <div className="preference-card">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-600 mb-2.5">
+                  <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
                     <Map className="w-4 h-4 text-blue-500" /> Where?
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                     {regionOptions.map((o) => (
                       <button
                         key={o}
@@ -438,10 +438,10 @@ export default function Home() {
 
               <button
                 onClick={handlePlanWeekend}
-                className="w-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-3.5 text-white font-bold text-base shadow-lg shadow-blue-200/40 hover:brightness-105 transition-all transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                className="w-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2 md:px-6 md:py-3.5 text-white font-bold text-sm md:text-base shadow-lg shadow-blue-200/40 hover:brightness-105 transition-all transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
                 <span className="flex items-center justify-center gap-2">
-                  <Sparkles className="w-5 h-5" /> Generate Itinerary
+                  <Sparkles className="w-4 h-4 md:w-5 md:h-5" /> Generate Itinerary
                 </span>
               </button>
             </motion.section>
@@ -547,7 +547,7 @@ export default function Home() {
       </div>
 
       {/* ===== ATTRIBUTION FOOTER ===== */}
-      <footer className="source-attribution-footer">
+      <footer className="source-attribution-footer py-4 md:py-8">
         <div className="max-w-3xl mx-auto w-full">
           <p className="source-attribution-label">Events sourced from</p>
           <div className="source-attribution-links">

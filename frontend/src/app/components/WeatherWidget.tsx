@@ -124,10 +124,10 @@ export default function WeatherWidget() {
       >
         {weather.current && (
           <>
-            <span className="text-lg leading-none">
+            <span className="text-base md:text-lg leading-none">
               {weatherEmoji(weather.current.icon)}
             </span>
-            <span className="text-sm font-semibold text-zinc-700">
+            <span className="text-xs md:text-sm font-semibold text-zinc-700">
               {weather.current.temp}°C
             </span>
             <ChevronDown
