@@ -40,7 +40,6 @@ export const handler = async (event: any) => {
         ":start": `EVENT#${startDate}`,
         ":end": `EVENT#${endDate}\uffff`
       },
-      Limit: 100 
     });
     
     console.log("Querying DynamoDB table:", process.env.TABLE_NAME);
@@ -56,13 +55,29 @@ export const handler = async (event: any) => {
     if (selectedRegions.length > 0 && selectedRegions.length < 6) {
       const beforeHardFilter = bedrockEvents.length;
       bedrockEvents = bedrockEvents.filter((e: any) => {
-        // If the event hasn't been tagged yet (old data) or is tagged as Unknown, keep it for LLM to decide
         if (!e.mapped_region || e.mapped_region === "Unknown") return true;
-        // If it matches one of the selected regions, keep it
         return selectedRegions.includes(e.mapped_region);
       });
       console.log(`Hard filtering: ${beforeHardFilter} -> ${bedrockEvents.length} events (Filtered by: ${selectedRegions.join(', ')})`);
     }
+
+    // 2. Prioritize and slice events for Bedrock (LLM) context
+    // We want to send about 120 events total to save tokens, but ensure 'aucklandforkids' are well-represented.
+    const isKidsEvent = (e: any) => 
+      e.source === 'aucklandforkids' || 
+      (e.seenInSources && e.seenInSources.includes('aucklandforkids'));
+
+    const kidsEventsPool = bedrockEvents.filter(isKidsEvent);
+    const otherEventsPool = bedrockEvents.filter(e => !isKidsEvent(e));
+
+    console.log(`Pool breakdown: ${kidsEventsPool.length} Kids events, ${otherEventsPool.length} others.`);
+
+    // Selection logic: Up to 50 kids events, then fill the rest from others to reach ~120
+    bedrockEvents = [
+      ...kidsEventsPool.slice(0, 50),
+      ...otherEventsPool.slice(0, 120 - Math.min(50, kidsEventsPool.length))
+    ];
+    console.log(`Final Bedrock context size: ${bedrockEvents.length} events`);
 
     let regionInstruction = '';
     if (selectedRegions.length > 0 && selectedRegions.length < 6) {
@@ -94,21 +109,12 @@ The user is open to exploring any area in Auckland. Try to group activities geog
       console.log(`Filtered out ${beforeWeekendCount - events.length} non-weekend events`);
     }
 
-    // Family mode: extra keyword filtering and source-based prioritization
+    // Family mode: extra keyword filtering
     if (audience === 'Family') {
       const beforeCount = events.length;
       events = events.filter((e: any) => isAppropriateForFamily(e));
       bedrockEvents = bedrockEvents.filter((e: any) => isAppropriateForFamily(e));
       
-      // Prioritize 'aucklandforkids' in the list sent to Bedrock
-      bedrockEvents.sort((a, b) => {
-        const aIsKids = (a.source === 'aucklandforkids' || (a.seenInSources && a.seenInSources.includes('aucklandforkids')));
-        const bIsKids = (b.source === 'aucklandforkids' || (b.seenInSources && b.seenInSources.includes('aucklandforkids')));
-        if (aIsKids && !bIsKids) return -1;
-        if (!aIsKids && bIsKids) return 1;
-        return 0;
-      });
-
       const filtered = beforeCount - events.length;
       if (filtered > 0) {
         console.log(`Family mode: filtered out ${filtered} inappropriate events`);
