@@ -64,26 +64,23 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
       className={`relative timeline-card flex flex-col sm:flex-row overflow-hidden group ${isSwapping ? "timeline-card-swapping" : ""}`}
     >
       {/* Cover Image Layer */}
-      <div className="h-32 sm:h-auto w-full sm:w-36 shrink-0 relative overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-        {imageUrl ? (
+      {imageUrl && (
+        <div className="h-32 sm:h-auto w-full sm:w-36 shrink-0 relative overflow-hidden bg-zinc-100">
           <img 
             src={imageUrl}
             alt=""
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             referrerPolicy="no-referrer"
           />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-500 opacity-80" />
-        )}
-        {/* Dark gradient to make tags pop if needed */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        
-        {eventData?.is_free && (
-          <span className="absolute top-2 left-2 bg-emerald-400 text-zinc-900 text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm z-10">
-            FREE
-          </span>
-        )}
-      </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          
+          {eventData?.is_free && (
+            <span className="absolute top-2 left-2 bg-emerald-400 text-zinc-900 text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm z-10">
+              FREE
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Content Layer */}
       <div className="p-3 sm:p-4 flex flex-col gap-1.5 relative z-10 bg-white/90 flex-1">

@@ -53,7 +53,6 @@ Auckland Weekend Planner is a premium, AI-powered travel assistant designed spec
 ```text
 frontend/        Next.js web application
 infrastructure/  AWS CDK stack & Lambda handlers (Cron & API)
-docs/            Architecture design and UI/UX documentation
 deploy.ps1       One-click deployment helper script
 ```
 
@@ -73,6 +72,10 @@ NEXT_PUBLIC_API_URL=https://<api-id>.execute-api.ap-southeast-2.amazonaws.com/
 OPENWEATHER_API_KEY=your_key
 ```
 
+> **Note on CORS & API URLs:**
+> When running locally, ensure that your `NEXT_PUBLIC_API_URL` exactly matches the API Gateway endpoint deployed via CDK.
+> The backend AWS CDK stack is configured to allow CORS requests from `http://localhost:3000` (for local dev) and `https://weekend.sheng.nz` (for production). If you change the frontend port or domain, you must update the `corsPreflight` settings in `infrastructure-stack.ts` and re-deploy.
+
 ### 3. Start Development
 ```bash
 cd frontend
@@ -80,6 +83,18 @@ npm install
 npm run dev
 ```
 Visit `http://localhost:3000` to start planning!
+
+## 🛣️ Roadmap
+- [x] Phase 1: Bug Fixes & Code Cleanup
+- [x] Phase 2: User Experience Enhancements
+- [x] Phase 3: Dark Mode Optimization
+- [x] Phase 4: UI Polish
+- [x] Phase 5: Component Refactoring
+- [x] Phase 6: Testing & Quality
+- [x] Phase 7: Infrastructure Optimization
+- [x] Phase 8: Documentation Updates
+- [ ] Upcoming: Multi-language support (i18n)
+- [ ] Upcoming: Direct calendar sync (Google Calendar / Apple Calendar API integration)
 
 ---
 *Built with ❤️ for Aucklanders and visitors.*
