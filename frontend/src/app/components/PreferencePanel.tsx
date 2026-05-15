@@ -53,7 +53,7 @@ export default function PreferencePanel({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-2 md:mb-6 preference-grid">
         {/* Who */}
-        <div className="preference-card">
+        <div className="bg-white/40 dark:bg-zinc-800/40 border border-white/60 dark:border-zinc-700/60 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
             <Users className="w-4 h-4 text-blue-500" /> Who&apos;s going?
           </div>
@@ -71,7 +71,7 @@ export default function PreferencePanel({
         </div>
 
         {/* Budget */}
-        <div className="preference-card">
+        <div className="bg-white/40 dark:bg-zinc-800/40 border border-white/60 dark:border-zinc-700/60 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
             <Wallet className="w-4 h-4 text-blue-500" /> Budget Level
           </div>
@@ -89,7 +89,7 @@ export default function PreferencePanel({
         </div>
 
         {/* When — with weather hints */}
-        <div className="preference-card">
+        <div className="bg-white/40 dark:bg-zinc-800/40 border border-white/60 dark:border-zinc-700/60 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
             <CalendarDays className="w-4 h-4 text-blue-500" /> When?
           </div>
@@ -116,7 +116,7 @@ export default function PreferencePanel({
         </div>
 
         {/* Where */}
-        <div className="preference-card">
+        <div className="bg-white/40 dark:bg-zinc-800/40 border border-white/60 dark:border-zinc-700/60 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
             <Map className="w-4 h-4 text-blue-500" /> Where?
           </div>
@@ -134,14 +134,17 @@ export default function PreferencePanel({
         </div>
       </div>
 
-      <button
+      <motion.button
         onClick={onGenerate}
-        className="w-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2 md:px-6 md:py-3.5 text-white font-bold text-sm md:text-base shadow-lg shadow-blue-200/40 hover:brightness-105 transition-all transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        className="w-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2 md:px-6 md:py-3.5 text-white font-bold text-sm md:text-base shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-shadow cursor-pointer relative overflow-hidden group"
       >
-        <span className="flex items-center justify-center gap-2">
+        <div className="absolute inset-0 bg-white/20 w-full h-full -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] skew-x-12" />
+        <span className="flex items-center justify-center gap-2 relative z-10">
           <Sparkles className="w-4 h-4 md:w-5 md:h-5" /> Generate Itinerary
         </span>
-      </button>
+      </motion.button>
     </motion.section>
   );
 }

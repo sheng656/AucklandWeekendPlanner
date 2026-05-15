@@ -180,6 +180,7 @@ export default function MoreEvents({
                   </button>
                 </div>
               )}
+              </div>
             </div>
 
             <div className="more-events-grid">

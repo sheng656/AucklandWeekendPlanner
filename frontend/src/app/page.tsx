@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Compass } from "lucide-react";
 import WeatherWidget from "./components/WeatherWidget";
 import PreferencePanel from "./components/PreferencePanel";
 import ResultsSection from "./components/ResultsSection";
@@ -253,13 +253,18 @@ export default function Home() {
           transition={spring}
           className="flex justify-between items-center glass-panel p-3 md:p-5 shrink-0"
         >
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-base sm:text-xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent leading-tight tracking-tighter sm:tracking-normal">
-              Auckland Weekend Planner
-            </h1>
-            <span className="hidden sm:inline-block text-[10px] font-bold bg-gradient-to-r from-blue-500 to-cyan-400 text-white px-2 py-0.5 rounded-md">
-              BETA V2
-            </span>
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-md shrink-0">
+              <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2">
+              <h1 className="text-base sm:text-xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent leading-tight tracking-tighter sm:tracking-normal">
+                Auckland Weekend Planner
+              </h1>
+              <span className="hidden sm:inline-block text-[10px] font-bold bg-gradient-to-r from-blue-500 to-cyan-400 text-white px-2 py-0.5 rounded-md self-center">
+                BETA V2
+              </span>
+            </div>
           </div>
           <WeatherWidget />
         </motion.header>
