@@ -83,7 +83,7 @@ export class InfrastructureStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.minutes(15),
-      memorySize: 512,
+      memorySize: 256,
       environment: {
         TABLE_NAME: dataTable.tableName,
         IMAGE_BUCKET_NAME: imageBucket.bucketName,
@@ -110,7 +110,7 @@ export class InfrastructureStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.minutes(15),
-      memorySize: 512,
+      memorySize: 256,
       environment: {
         TABLE_NAME: dataTable.tableName,
         IMAGE_BUCKET_NAME: imageBucket.bucketName,

@@ -75,6 +75,17 @@ function absolutizeUrl(rawUrl: string, baseUrl: string): string {
   }
 }
 
+/**
+ * Umbraco CMS stores media links in bracket notation: [https://ourauckland.aucklandcouncil.govt.nz/media/...]
+ * absolutizeUrl treats these as relative paths and prepends the base URL, producing 404 URLs.
+ * This function extracts the real URL from within the brackets before resolution.
+ */
+function sanitizeImageUrl(raw: string): string {
+  const bracketMatch = raw.match(/\[([^\]]+)\]/);
+  if (bracketMatch) return bracketMatch[1].trim();
+  return raw;
+}
+
 function normalizeImageUrl(input: any, detailUrl: string): string | undefined {
   if (!input) return undefined;
 
@@ -90,7 +101,7 @@ function normalizeImageUrl(input: any, detailUrl: string): string | undefined {
   }
 
   if (!raw) return undefined;
-  return absolutizeUrl(raw, detailUrl);
+  return absolutizeUrl(sanitizeImageUrl(raw), detailUrl);
 }
 
 export function extractListCandidates(html: string, baseUrl: string): ListEventCandidate[] {
@@ -108,7 +119,16 @@ export function extractListCandidates(html: string, baseUrl: string): ListEventC
     const titleFromLink = cleanText($(elem).text());
     const titleFromCard = cleanText(card.find('h1, h2, h3, .title, .event-title').first().text());
     const dateSnippet = cleanText(card.find('time, .date, .event-date, .when').first().text()) || undefined;
-    const imageUrl = card.find('img').first().attr('src') || undefined;
+    // Support lazy-loaded images: real URL may be in data-src rather than src.
+    // Also sanitize bracket-format URLs used by Umbraco CMS: [https://...]
+    const imgEl = card.find('img').first();
+    const rawImgSrc =
+      imgEl.attr('src') ||
+      imgEl.attr('data-src') ||
+      imgEl.attr('data-lazy-src') ||
+      imgEl.attr('data-original') ||
+      undefined;
+    const imageUrl = rawImgSrc ? sanitizeImageUrl(rawImgSrc) : undefined;
 
     const title = titleFromCard || titleFromLink || 'Untitled event';
     out.push({ title, detailUrl, dateSnippet, imageUrl: imageUrl ? absolutizeUrl(imageUrl, baseUrl) : undefined });
@@ -264,11 +284,16 @@ export function parseDetailEvent(html: string, detailUrl: string): DetailEventDa
     getByLabeledBlock($, ['cost', 'price', 'entry', 'admission']) ||
     undefined;
 
-  const imageUrlRaw =
+  const rawImageCandidate =
     $('meta[property="og:image"]').attr('content') ||
-    $('img.wp-post-image').first().attr('src') ||
+    // OurAuckland uses Umbraco CMS (not WordPress), so img.wp-post-image never matches.
+    // Check Umbraco/OurAuckland common image container selectors instead.
+    $('figure img').first().attr('src') ||
+    $('.event-image img, .hero img, .feature-image img, .article-image img').first().attr('src') ||
     $('article img').first().attr('src') ||
     undefined;
+  // Sanitize Umbraco bracket-format URLs before absolutizing
+  const imageUrlRaw = rawImageCandidate ? sanitizeImageUrl(rawImageCandidate) : undefined;
 
   return {
     title: cleanText(ldJson?.name || title),

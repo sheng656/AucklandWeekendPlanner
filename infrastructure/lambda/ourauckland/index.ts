@@ -32,11 +32,22 @@ async function uploadImageToS3(imageUrl: string, sourceEventId: string): Promise
     const imgResponse = await fetchWithRetry(
       imageUrl,
       { 
-        headers: { 'User-Agent': 'AucklandWeekendPlanner/1.0' },
+        headers: {
+          'User-Agent': 'AucklandWeekendPlanner/1.0',
+          // Referer is required to bypass hotlink protection on ourauckland.aucklandcouncil.govt.nz
+          'Referer': 'https://ourauckland.aucklandcouncil.govt.nz',
+        },
         signal: controller.signal
       },
       2,
     );
+
+    // Guard: if the image server returns a non-2xx (e.g. 403 hotlink protection),
+    // the response body is an HTML error page — do NOT upload it to S3.
+    if (!imgResponse.ok) {
+      console.warn(`Image fetch returned ${imgResponse.status} for event ${sourceEventId}, skipping upload.`);
+      return '';
+    }
 
     let arrayBuffer: any = await imgResponse.arrayBuffer();
     let buffer: any = Buffer.from(arrayBuffer);
