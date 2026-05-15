@@ -52,7 +52,7 @@ export class InfrastructureStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.minutes(15),
-      memorySize: 1024,
+      memorySize: 512,
       environment: {
         TABLE_NAME: dataTable.tableName,
         SSM_PATH: '/AucklandPlanner/Config', // Path to parameters logic
@@ -171,6 +171,14 @@ export class InfrastructureStack extends cdk.Stack {
       methods: [apigatewayv2.HttpMethod.POST],
       integration: apiIntegration,
     });
+
+    const cfnStage = api.defaultStage?.node.defaultChild as apigatewayv2.CfnStage;
+    if (cfnStage) {
+      cfnStage.defaultRouteSettings = {
+        throttlingBurstLimit: 100,
+        throttlingRateLimit: 50,
+      };
+    }
 
     new cdk.CfnOutput(this, 'ApiV2Url', {
       value: api.url ?? '',

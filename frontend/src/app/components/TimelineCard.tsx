@@ -49,8 +49,8 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
   }
 
   // 2. Normal Card State (with faded background image)
-  const fallbackSeed = activity.eventId || activity.title.replace(/\s+/g, '');
-  const imageUrl = eventData?.image_url || `https://picsum.photos/seed/${fallbackSeed}/800/450`;
+  // 2. Normal Card State (with faded background image)
+  const imageUrl = eventData?.image_url;
 
   const sourceLabel = getSourceLabel(eventData?.source);
   const sourceColor = getSourceColor(eventData?.source);
@@ -64,13 +64,17 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
       className={`relative timeline-card flex flex-col sm:flex-row overflow-hidden group ${isSwapping ? "timeline-card-swapping" : ""}`}
     >
       {/* Cover Image Layer */}
-      <div className="h-32 sm:h-auto w-full sm:w-36 shrink-0 relative overflow-hidden bg-zinc-100">
-        <img 
-          src={imageUrl}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          referrerPolicy="no-referrer"
-        />
+      <div className="h-32 sm:h-auto w-full sm:w-36 shrink-0 relative overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+        {imageUrl ? (
+          <img 
+            src={imageUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-500 opacity-80" />
+        )}
         {/* Dark gradient to make tags pop if needed */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         

@@ -37,12 +37,14 @@ export default function Home() {
 
   // Weather data for preference hints
   const [weatherForecast, setWeatherForecast] = useState<WeatherForecast[]>([]);
+  const [weatherData, setWeatherData] = useState<any | null>(null);
 
   useEffect(() => {
     fetch("/api/weather")
       .then((r) => r.json())
       .then((data) => {
         if (data.forecast) setWeatherForecast(data.forecast);
+        if (!data.error) setWeatherData(data);
       })
       .catch(() => {});
   }, []);
@@ -266,7 +268,7 @@ export default function Home() {
               </span>
             </div>
           </div>
-          <WeatherWidget />
+          <WeatherWidget weather={weatherData} />
         </motion.header>
 
         {/* ===== CONTENT ===== */}

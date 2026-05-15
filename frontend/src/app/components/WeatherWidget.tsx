@@ -45,25 +45,14 @@ export function weatherEmoji(code: string): string {
   return map[base] || '☁️';
 }
 
-export default function WeatherWidget() {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+interface WeatherWidgetProps {
+  weather: WeatherData | null;
+  error?: boolean;
+}
+
+export default function WeatherWidget({ weather, error }: WeatherWidgetProps) {
   const [expanded, setExpanded] = useState(false);
-  const [error, setError] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch("/api/weather")
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          setError(true);
-        } else {
-          setWeather(data);
-        }
-      })
-      .catch(() => setError(true));
-  }, []);
-
   // Close on click outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

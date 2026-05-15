@@ -9,7 +9,7 @@ interface ExportActionsProps {
   plan: DayPlan[];
 }
 
-function buildDateFromParts(dateStr: string, timeStr: string): Date {
+export function buildDateFromParts(dateStr: string, timeStr: string): Date {
   // More robust parsing for inputs like "May 3", "3 May", "Mar 14", or keywords like "tomorrow"
   const now = new Date();
   const year = now.getFullYear();
@@ -136,7 +136,7 @@ function foldICSLine(line: string): string {
   return res;
 }
 
-function generateICS(plan: DayPlan[]): string {
+export function generateICS(plan: DayPlan[]): string {
   let ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",

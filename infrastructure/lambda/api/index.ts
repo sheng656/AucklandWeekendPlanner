@@ -1,5 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, QueryCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import * as crypto from 'crypto';
 import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
 import { computeUpcomingWeekendRange } from '../shared/utils';
 
@@ -29,6 +30,27 @@ export const handler = async (event: any) => {
     const ddbClient = new DynamoDBClient({});
     const docClient = DynamoDBDocumentClient.from(ddbClient);
     
+    // Check Cache first
+    const reqHash = crypto.createHash('md5').update(JSON.stringify({ audience, budget, tripDays, region, userQuery })).digest('hex');
+    const cacheKey = `CACHE#${reqHash}`;
+    
+    try {
+      const cacheResult = await docClient.send(new GetCommand({
+        TableName: process.env.TABLE_NAME,
+        Key: { PK: cacheKey, SK: 'RESULT' }
+      }));
+      if (cacheResult.Item && cacheResult.Item.data) {
+        console.log("Cache hit for", cacheKey);
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: cacheResult.Item.data
+        };
+      }
+    } catch (e) {
+      console.log("Cache check failed, continuing", e);
+    }
+
     const { startDate, endDate } = computeUpcomingWeekendRange();
     console.log(`Querying events for weekend: ${startDate} to ${endDate}`);
 
@@ -362,18 +384,34 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
     const recommendedEvents = allFormattedEvents.filter((e: any) => mentionedIds.has(String(e.id)));
     const otherEvents = allFormattedEvents.filter((e: any) => !mentionedIds.has(String(e.id)));
 
+    const responseBodyStr = JSON.stringify({ 
+      success: true,
+      itinerary,
+      recommendedEvents,
+      otherEvents
+    });
+
+    try {
+      await docClient.send(new PutCommand({
+        TableName: process.env.TABLE_NAME,
+        Item: {
+          PK: cacheKey,
+          SK: 'RESULT',
+          data: responseBodyStr,
+          ttl: Math.floor(Date.now() / 1000) + 86400 // 24 hours
+        }
+      }));
+    } catch (e) {
+      console.error("Failed to save cache", e);
+    }
+
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
-      body: JSON.stringify({ 
-        success: true,
-        itinerary,
-        recommendedEvents,
-        otherEvents
-      })
+      body: responseBodyStr
     };
     
   } catch (error) {

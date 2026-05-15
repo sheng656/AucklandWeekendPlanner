@@ -192,13 +192,17 @@ export default function MoreEvents({
                   transition={{ delay: idx * 0.05 }}
                   className="more-event-card"
                 >
-                  <div className="more-event-image overflow-hidden relative group">
-                    <img 
-                      src={event.image_url || `https://picsum.photos/seed/${event.id || event.name.replace(/\s+/g, '')}/800/450`} 
-                      alt={event.name} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                      referrerPolicy="no-referrer"
-                    />
+                  <div className="more-event-image overflow-hidden relative group bg-gradient-to-br from-teal-100 to-cyan-100 flex items-center justify-center">
+                    {event.image_url ? (
+                      <img 
+                        src={event.image_url} 
+                        alt={event.name} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 absolute inset-0" 
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-teal-400 to-cyan-500 opacity-80" />
+                    )}
                     {event.is_free && (
                       <span className="absolute top-1.5 left-1.5 bg-emerald-400 text-zinc-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10 shadow-sm">
                         FREE

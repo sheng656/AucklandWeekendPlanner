@@ -22,7 +22,23 @@ interface DailyForecast {
   isWeekend: boolean;
 }
 
-export async function GET() {
+const rateLimit = new Map<string, { count: number; expiresAt: number }>();
+const RATE_LIMIT_MAX = 20;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+export async function GET(request: Request) {
+  // Simple in-memory rate limiting
+  const ip = request.headers.get('x-forwarded-for') || 'anonymous';
+  const now = Date.now();
+  const record = rateLimit.get(ip);
+  if (record && record.expiresAt > now) {
+    if (record.count >= RATE_LIMIT_MAX) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+    record.count++;
+  } else {
+    rateLimit.set(ip, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
+  }
   const apiKey = process.env.OPENWEATHER_API_KEY;
 
   if (!apiKey) {
