@@ -4,12 +4,6 @@
   --background: #f0f4f8;
   --foreground: #171717;
   
-  /* Refined Blue-Based Palette */
-  --dopamine-mint: #22d3ee;
-  --dopamine-coral: #0ea5e9;
-  --dopamine-yellow: #fde047;
-  --dopamine-blue: #38bdf8;
-  
   /* Glassmorphism */
   --glass-bg: rgba(255, 255, 255, 0.55);
   --glass-border: rgba(255, 255, 255, 0.7);
@@ -21,11 +15,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
-  --color-dopamine-mint: var(--dopamine-mint);
-  --color-dopamine-coral: var(--dopamine-coral);
-  --color-dopamine-yellow: var(--dopamine-yellow);
-  --color-dopamine-blue: var(--dopamine-blue);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,6 +23,14 @@
     --foreground: #f8fafc;
     --glass-bg: rgba(15, 23, 42, 0.5);
     --glass-border: rgba(255, 255, 255, 0.1);
+  }
+
+  .mesh-bg {
+    background-image: 
+      radial-gradient(at 20% 10%, hsla(200, 100%, 25%, 0.5) 0px, transparent 50%),
+      radial-gradient(at 80% 5%, hsla(220, 100%, 25%, 0.4) 0px, transparent 50%),
+      radial-gradient(at 0% 60%, hsla(180, 80%, 25%, 0.3) 0px, transparent 50%),
+      radial-gradient(at 100% 80%, hsla(240, 60%, 25%, 0.3) 0px, transparent 50%);
   }
 }
 

@@ -239,7 +239,7 @@ export const handler = async (event: any) => {
       }
 
       // Append restrictions (like RP18, All Ages) as supplementary info if present
-      if (item.restrictions && item.restrictions !== costText) {
+      if (typeof item.restrictions === 'string' && item.restrictions !== costText) {
         costText = `${costText} (${item.restrictions})`;
       }
 

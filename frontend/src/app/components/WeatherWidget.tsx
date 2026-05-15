@@ -4,29 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Cloud, Droplets, Wind, ChevronDown } from "lucide-react";
 
-interface WeatherCurrent {
-  temp: number;
-  icon: string;
-  description: string;
-  humidity: number;
-}
-
-interface WeatherForecast {
-  date: string;
-  dayName: string;
-  temp_min: number;
-  temp_max: number;
-  icon: string;
-  description: string;
-  humidity: number;
-  windSpeed: number;
-  isWeekend: boolean;
-}
-
-interface WeatherData {
-  current: WeatherCurrent | null;
-  forecast: WeatherForecast[];
-}
+import type { WeatherData, WeatherForecast, WeatherCurrent } from "../../types";
 
 // Map day option to forecast for inline hint
 export function getWeatherHint(
@@ -43,14 +21,7 @@ export function getWeatherHint(
   });
   
   if (dayOption === "Both Days") {
-    const sat = forecast.find(f => new Date(f.date).getDay() === 6);
-    const sun = forecast.find(f => new Date(f.date).getDay() === 0);
-    if (sat && sun) {
-      return {
-        icon: sat.icon,
-        temp: `${Math.min(sat.temp_min, sun.temp_min)}–${Math.max(sat.temp_max, sun.temp_max)}°`,
-      };
-    }
+    return null;
   }
 
   if (!target) return null;
@@ -183,18 +154,3 @@ export default function WeatherWidget() {
   );
 }
 
-// Export hook for other components to use weather data
-export function useWeatherData(): WeatherData | null {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-
-  useEffect(() => {
-    fetch("/api/weather")
-      .then(r => r.json())
-      .then(data => {
-        if (!data.error) setWeather(data);
-      })
-      .catch(() => {});
-  }, []);
-
-  return weather;
-}

@@ -3,23 +3,7 @@
 import { CalendarPlus, Share2, Check, Copy } from "lucide-react";
 import { useState } from "react";
 
-interface DayPlan {
-  dayName: string;
-  date: string;
-  timeSlots: {
-    period: string;
-    activities: {
-      title: string;
-      time: string;
-      cost: string;
-      description: string;
-      location: string;
-      eventId: string | null;
-      isEmptyPlaceholder?: boolean;
-    }[];
-  }[];
-  estimatedTotal: string;
-}
+import type { DayPlan } from "../../types";
 
 interface ExportActionsProps {
   plan: DayPlan[];

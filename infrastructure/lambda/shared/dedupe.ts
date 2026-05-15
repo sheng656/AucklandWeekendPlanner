@@ -330,7 +330,7 @@ export async function persistEventWithDedupe(
     firstSeenAt: preservedFirstSeenAt,
     lastSeenAt: nowIso,
     dedupeKey,
-    ttl: baseRecord?.ttl ?? Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
+    ttl: baseRecord?.ttl ?? Math.floor(Date.now() / 1000) + (14 * 24 * 60 * 60),
   };
 
   if (!options.dryRun) {

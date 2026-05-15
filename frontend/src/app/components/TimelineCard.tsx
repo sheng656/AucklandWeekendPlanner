@@ -118,10 +118,15 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
             </span>
           )}
           {activity.location && (
-            <span className="flex items-center gap-1">
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location + ", Auckland, NZ")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+            >
               <MapPin className="w-3 h-3 text-blue-400" />
-              {activity.location}
-            </span>
+              <span className="line-clamp-1">{activity.location}</span>
+            </a>
           )}
           {activity.cost && activity.cost !== "Free" && activity.cost !== "$0" && (
             <span className="flex items-center gap-1">

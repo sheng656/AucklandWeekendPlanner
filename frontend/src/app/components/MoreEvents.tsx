@@ -5,19 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Compass, ChevronDown, Plus, Calendar, MapPin, ExternalLink, Map, ChevronLeft, ChevronRight } from "lucide-react";
 import { getSourceShortLabel, getSourceColor, getSourceHoverColor } from "../../lib/sourceUtils";
 
-interface EventData {
-  id: string;
-  name: string;
-  description: string;
-  image_url: string;
-  datetime_start: string;
-  datetime_end: string;
-  location_summary: string;
-  is_free: boolean;
-  url: string;
-  mapped_region?: string;
-  source?: string;
-}
+import type { EventData } from "../../types";
 
 interface MoreEventsProps {
   events: EventData[];
@@ -40,21 +28,42 @@ export default function MoreEvents({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
+  const [filterSource, setFilterSource] = useState<string>("All");
+  const [filterCost, setFilterCost] = useState<string>("All");
+  const [filterTime, setFilterTime] = useState<string>("All");
+
   // Reset pagination/filters when toggling or new events load
   useEffect(() => {
     setCurrentPage(1);
     setShowAllRegions(false);
-  }, [events, isOpen]);
+  }, [events, isOpen, filterSource, filterCost, filterTime]);
 
   const hasSpecificRegions = selectedRegions.length > 0 && selectedRegions.length < 6;
 
+  const filteredEvents = events.filter(e => {
+    if (filterCost === "Free" && !e.is_free) return false;
+    if (filterCost === "Paid" && e.is_free) return false;
+    
+    if (filterSource !== "All" && e.source !== filterSource) return false;
+
+    if (!swappingActive && filterTime !== "All") {
+      if (!e.datetime_start) return false;
+      const hour = new Date(e.datetime_start).getHours();
+      if (filterTime === "Morning" && (hour < 5 || hour >= 12)) return false;
+      if (filterTime === "Afternoon" && (hour < 12 || hour >= 17)) return false;
+      if (filterTime === "Evening" && (hour >= 5 && hour < 17)) return false;
+    }
+
+    return true;
+  });
+
   // Separate events matching user's region preference vs others
-  const matchingEvents = events.filter(e => {
+  const matchingEvents = filteredEvents.filter(e => {
     if (!e.mapped_region || e.mapped_region === "Unknown") return true; // keep unknowns in the main pool
     return selectedRegions.includes(e.mapped_region);
   });
   
-  const otherRegionEvents = events.filter(e => {
+  const otherRegionEvents = filteredEvents.filter(e => {
     if (!e.mapped_region || e.mapped_region === "Unknown") return false;
     return !selectedRegions.includes(e.mapped_region);
   });
@@ -105,8 +114,42 @@ export default function MoreEvents({
             )}
 
             {/* Pagination & Filter Controls */}
-            <div className="mx-4 mt-3 flex flex-wrap items-center justify-between gap-3">
-              {hasSpecificRegions && otherRegionEvents.length > 0 && (
+            <div className="mx-4 mt-3 flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={filterSource}
+                  onChange={(e) => setFilterSource(e.target.value)}
+                  className="text-xs font-semibold px-2 py-1.5 rounded-md border border-zinc-200 bg-white text-zinc-600 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer"
+                >
+                  <option value="All">All Sources</option>
+                  <option value="OurAuckland">OurAuckland</option>
+                  <option value="Eventfinda">Eventfinda</option>
+                  <option value="Auckland for Kids">Auckland for Kids</option>
+                </select>
+                <select
+                  value={filterCost}
+                  onChange={(e) => setFilterCost(e.target.value)}
+                  className="text-xs font-semibold px-2 py-1.5 rounded-md border border-zinc-200 bg-white text-zinc-600 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer"
+                >
+                  <option value="All">All Costs</option>
+                  <option value="Free">Free Only</option>
+                  <option value="Paid">Paid Only</option>
+                </select>
+                {!swappingActive && (
+                  <select
+                    value={filterTime}
+                    onChange={(e) => setFilterTime(e.target.value)}
+                    className="text-xs font-semibold px-2 py-1.5 rounded-md border border-zinc-200 bg-white text-zinc-600 focus:outline-none focus:border-blue-400 transition-colors cursor-pointer"
+                  >
+                    <option value="All">All Times</option>
+                    <option value="Morning">Morning</option>
+                    <option value="Afternoon">Afternoon</option>
+                    <option value="Evening">Evening</option>
+                  </select>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {hasSpecificRegions && otherRegionEvents.length > 0 && (
                 <button 
                   onClick={() => { setShowAllRegions(!showAllRegions); setCurrentPage(1); }}
                   className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1.5 ${showAllRegions ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'}`}
@@ -177,10 +220,15 @@ export default function MoreEvents({
                     </div>
 
                     {event.location_summary && (
-                      <div className="flex items-center gap-1 text-[10px] text-zinc-400">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location_summary + ", Auckland, NZ")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-blue-500 transition-colors"
+                      >
                         <MapPin className="w-2.5 h-2.5 shrink-0" />
                         <span className="truncate">{event.location_summary}</span>
-                      </div>
+                      </a>
                     )}
 
                     <div className="flex items-center gap-2 mt-auto pt-1">
