@@ -71,6 +71,53 @@ export function computeUpcomingWeekendRange(reference = new Date()): WeekendRang
   };
 }
 
+export interface TwoWeekendRange {
+  thisWeekend: { saturday: string; sunday: string };
+  nextWeekend: { saturday: string; sunday: string };
+}
+
+/**
+ * Computes exactly two weekends (this weekend and next weekend) for Auckland timezone.
+ * Returns ISO dates (YYYY-MM-DD).
+ * Business logic: on Monday-Friday, returns the coming Saturday/Sunday and the following Saturday/Sunday.
+ * On Saturday, returns today/tomorrow and next weekend.
+ * On Sunday, returns yesterday/today and next weekend.
+ */
+export function computeTwoWeekendRanges(reference = new Date()): TwoWeekendRange {
+  const nowInNz = new Date(reference.toLocaleString('en-US', { timeZone: 'Pacific/Auckland' }));
+  const day = nowInNz.getDay();
+  
+  // Sunday is day 0, Monday is 1, ..., Saturday is 6.
+  // If today is Sunday, this weekend's Saturday was yesterday (-1).
+  // Otherwise, this weekend's Saturday is 6 - day.
+  const daysUntilThisSat = day === 0 ? -1 : 6 - day;
+
+  const getLocalDateOffset = (offset: number): Date => {
+    const d = new Date(nowInNz);
+    d.setDate(nowInNz.getDate() + offset);
+    return d;
+  };
+
+  const format = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  };
+
+  return {
+    thisWeekend: {
+      saturday: format(getLocalDateOffset(daysUntilThisSat)),
+      sunday: format(getLocalDateOffset(daysUntilThisSat + 1))
+    },
+    nextWeekend: {
+      saturday: format(getLocalDateOffset(daysUntilThisSat + 7)),
+      sunday: format(getLocalDateOffset(daysUntilThisSat + 8))
+    }
+  };
+}
+
+
 export async function fetchWithRetry(
   url: string,
   options: RequestInit = {},

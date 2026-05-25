@@ -98,19 +98,32 @@ export const handler = async (event: any) => {
   try {
     // Parse request body
     const body = JSON.parse(event.body || '{}');
-    const { audience, budget, tripDays, region, query: userQuery } = body;
+    const { audience, budget, selectedDates, tripDays, region, query: userQuery } = body;
     
-    console.log("Request params:", { audience, budget, tripDays, region });
+    console.log("Request params:", { audience, budget, selectedDates, tripDays, region });
     
-    // 1. Fetch pre-warmed data from DynamoDB for the upcoming weekend
+    // 1. Fetch pre-warmed data from DynamoDB for the selected or upcoming weekend
     const ddbClient = new DynamoDBClient({});
     const docClient = DynamoDBDocumentClient.from(ddbClient);
     
-    const { startDate, endDate } = computeUpcomingWeekendRange();
-    console.log(`Upcoming weekend range: ${startDate} to ${endDate}`);
+    let startDate: string;
+    let endDate: string;
+    
+    // Calculate queries boundary based on explicit dates or fallback to upcoming weekend
+    if (Array.isArray(selectedDates) && selectedDates.length > 0) {
+      const sorted = [...selectedDates].sort();
+      startDate = sorted[0];
+      endDate = sorted[sorted.length - 1];
+    } else {
+      const fallback = computeUpcomingWeekendRange();
+      startDate = fallback.startDate;
+      endDate = fallback.endDate;
+    }
+    
+    console.log(`Resolved date boundary: ${startDate} to ${endDate}`);
 
-    // Check Cache first (includes dates to avoid serving cache from a past weekend)
-    const reqHash = crypto.createHash('md5').update(JSON.stringify({ audience, budget, tripDays, region, userQuery, startDate, endDate })).digest('hex');
+    // Check Cache first (includes dates and user params to avoid stale cache hits)
+    const reqHash = crypto.createHash('md5').update(JSON.stringify({ audience, budget, selectedDates, tripDays, region, userQuery, startDate, endDate })).digest('hex');
     const cacheKey = `CACHE#${reqHash}`;
     
     try {
@@ -130,7 +143,7 @@ export const handler = async (event: any) => {
       console.log("Cache check failed, continuing", e);
     }
 
-    console.log(`Querying events for weekend: ${startDate} to ${endDate}`);
+    console.log(`Querying events for boundary: ${startDate} to ${endDate}`);
 
     const query = new QueryCommand({
       TableName: process.env.TABLE_NAME,
@@ -195,18 +208,27 @@ The user is open to exploring any area in Auckland. Try to group activities geog
 `;
     }
 
-    // Ensure we only process weekend events (Saturday, Sunday)
+    // Filter events strictly to the exact selected dates.
+    // If no explicit selectedDates array is sent (legacy clients), fall back to sat/sun filter.
     const beforeWeekendCount = events.length;
-    const weekendFilter = (e: any) => {
+    const selectedDateSet = new Set(
+      Array.isArray(selectedDates) && selectedDates.length > 0 
+        ? selectedDates 
+        : [startDate, endDate]
+    );
+    const dateFilter = (e: any) => {
       if (!e.datetime_start) return false;
-      const date = new Date(e.datetime_start);
-      const dow = date.getDay();
-      return dow === 0 || dow === 6; // 0=Sun, 6=Sat
+      const eventDate = e.datetime_start.substring(0, 10); // "YYYY-MM-DD"
+      if (Array.isArray(selectedDates) && selectedDates.length > 0) {
+        return selectedDateSet.has(eventDate);
+      }
+      const dow = new Date(e.datetime_start).getDay();
+      return dow === 0 || dow === 6; // 0=Sun, 6=Sat legacy fallback
     };
-    events = events.filter(weekendFilter);
-    bedrockEvents = bedrockEvents.filter(weekendFilter);
+    events = events.filter(dateFilter);
+    bedrockEvents = bedrockEvents.filter(dateFilter);
     if (beforeWeekendCount - events.length > 0) {
-      console.log(`Filtered out ${beforeWeekendCount - events.length} non-weekend events`);
+      console.log(`Filtered out ${beforeWeekendCount - events.length} non-selected/non-weekend events`);
     }
 
     // Family mode: extra keyword filtering
@@ -221,36 +243,27 @@ The user is open to exploring any area in Auckland. Try to group activities geog
       }
     }
 
-    // Calculate this weekend's actual dates
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    let saturdayDate: Date, sundayDate: Date;
-    
-    if (dayOfWeek === 6) {
-      // Today is Saturday
-      saturdayDate = new Date(today);
-      sundayDate = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    } else if (dayOfWeek === 0) {
-      // Today is Sunday; next weekend is Sat/Sun
-      saturdayDate = new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000);
-      sundayDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    } else {
-      // Mon-Fri: this Saturday & Sunday
-      const daysToSaturday = (6 - dayOfWeek + 7) % 7;
-      saturdayDate = new Date(today.getTime() + daysToSaturday * 24 * 60 * 60 * 1000);
-      sundayDate = new Date(saturdayDate.getTime() + 24 * 60 * 60 * 1000);
-    }
-    
-    const formatDateString = (date: Date) => {
+    // Parse ISO YYYY-MM-DD dates UTC-safely to prevent timezone-shift day mismatches on local/server environment
+    const formatIsoToHumanStr = (isoDate: string): string => {
+      const parts = isoDate.split('-');
+      if (parts.length !== 3) return isoDate;
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      const dateObj = new Date(Date.UTC(y, m, d));
+      
       const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      return `${months[date.getMonth()]} ${date.getDate()}`;
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return `${dayNames[dateObj.getUTCDay()]} ${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}`;
     };
-    
-    const saturdayStr = formatDateString(saturdayDate);
-    const sundayStr = formatDateString(sundayDate);
-    
-    console.log(`Calculated weekend dates: Saturday=${saturdayStr}, Sunday=${sundayStr}`);
-    
+
+    const datesToPlan = Array.isArray(selectedDates) && selectedDates.length > 0
+      ? [...selectedDates].sort()
+      : [startDate, endDate]; // fallback
+      
+    const humanDates = datesToPlan.map(d => formatIsoToHumanStr(d));
+    console.log(`Calculated dynamic dates to plan:`, datesToPlan, humanDates);
+
     // 2. Call Bedrock for AI response
     const bedrock = new BedrockRuntimeClient({ region: 'ap-southeast-2' });
     
@@ -271,15 +284,16 @@ PRIORITIZATION: Events with "Source: aucklandforkids" are specifically curated f
 General priorities: parks, museums, markets, outdoor activities, and child-friendly venues.`;
     }
 
-    // Build tripDays constraint
-    let dayInstruction = '';
-    if (tripDays === 'Saturday') {
-      dayInstruction = `Create a plan for SATURDAY ONLY (${saturdayStr}). Do NOT include Sunday. The "days" array must contain exactly ONE entry for Saturday. Use date "${saturdayStr}" in the JSON.`;
-    } else if (tripDays === 'Sunday') {
-      dayInstruction = `Create a plan for SUNDAY ONLY (${sundayStr}). Do NOT include Saturday. The "days" array must contain exactly ONE entry for Sunday. Use date "${sundayStr}" in the JSON.`;
-    } else {
-      dayInstruction = `Create a full Saturday + Sunday plan. The "days" array must contain TWO entries:\n- First entry for Saturday with date "${saturdayStr}"\n- Second entry for Sunday with date "${sundayStr}"`;
-    }
+    // Build chronological list instructions and constraints dynamically
+    let dayInstruction = `The user wants a plan for exactly the following dates: ${humanDates.join(', ')}.\n`;
+    dayInstruction += `Your "days" array in the JSON response MUST contain exactly ${datesToPlan.length} entries matching these dates in chronological order:\n`;
+    datesToPlan.forEach((d, idx) => {
+      const humanStr = humanDates[idx];
+      const parts = d.split('-');
+      const parsedD = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+      const dayOfWeekName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parsedD.getUTCDay()];
+      dayInstruction += `- Entry ${idx + 1}: "dayName" must be "${dayOfWeekName}", "date" must be "${humanStr}".\n`;
+    });
     
     const prompt = `You are an experienced Auckland weekend planner AI assistant. Your task is to create a detailed, personalized weekend itinerary.
 
@@ -288,7 +302,6 @@ ${eventsContext}
 User Preferences:
 - Group Type: ${audience}
 - Budget Level: ${budget}
-- Days: ${tripDays}
 - Region: ${selectedRegions.join(', ') || region}
 ${audienceInstruction}
 ${regionInstruction}
@@ -307,8 +320,8 @@ OUTPUT FORMAT - You MUST respond with ONLY a valid JSON object (no markdown, no 
 {
   "days": [
     {
-      "dayName": "Saturday",
-      "date": "${saturdayStr}",
+      "dayName": "${humanDates[0]?.split(' ')[0] || 'Saturday'}",
+      "date": "${humanDates[0] || 'Saturday May 24'}",
       "timeSlots": [
         {
           "period": "Morning",

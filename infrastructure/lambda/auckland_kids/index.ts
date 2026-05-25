@@ -2,7 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
-import { sleep, fetchWithRetry, computeUpcomingWeekendRange, cleanText } from '../shared/utils';
+import { sleep, fetchWithRetry, computeTwoWeekendRanges, cleanText } from '../shared/utils';
 import { extractLdJson, mapAucklandKidsRegion } from './scraper';
 
 const ddbClient = new DynamoDBClient({});
@@ -22,10 +22,17 @@ export const handler = async (event: any) => {
       throw new Error('TABLE_NAME is required');
     }
 
-    const { startDate, endDate } = computeUpcomingWeekendRange();
+    const { thisWeekend, nextWeekend } = computeTwoWeekendRanges();
+    const targetDates = new Set([
+      thisWeekend.saturday,
+      thisWeekend.sunday,
+      nextWeekend.saturday,
+      nextWeekend.sunday
+    ]);
+
     const existingRecords = await loadAllStoredEvents(docClient, tableName, {
-      start: startDate,
-      end: endDate
+      start: thisWeekend.saturday,
+      end: nextWeekend.sunday
     });
 
     // Fetch recent events from Auckland for Kids WP API
@@ -69,6 +76,13 @@ export const handler = async (event: any) => {
 
       const datetimeStart = cleanText(structuredData.startDate);
       const datetimeEnd = cleanText(structuredData.endDate);
+      
+      // Strict filter: event must start on one of the target Sat/Sun dates
+      const eventDateStr = datetimeStart.substring(0, 10);
+      if (!targetDates.has(eventDateStr)) {
+        console.log(`Skipping event ${name} on date ${eventDateStr} (not a target Sat/Sun)`);
+        continue;
+      }
       
       const locParts = [structuredData.locationName, structuredData.streetAddress].filter(Boolean);
       const locationSummary = cleanText(locParts.length > 0 ? locParts.join(', ') : "Auckland");

@@ -3,7 +3,7 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { SSMClient, GetParametersByPathCommand } from "@aws-sdk/client-ssm";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { loadAllStoredEvents, persistEventWithDedupe, isAppropriateEvent, findMatchingRecord } from '../shared/dedupe';
-import { sleep, fetchWithRetry, computeUpcomingWeekendRange, cleanText } from '../shared/utils';
+import { sleep, fetchWithRetry, computeTwoWeekendRanges, cleanText } from '../shared/utils';
 import { mapToMacroRegion } from '../shared/regions';
 
 const ddbClient = new DynamoDBClient({});
@@ -64,61 +64,77 @@ export const handler = async (event: any) => {
     
     const eventsToStore = [];
     
-    const { startDate: startDateStr, endDate: endDateStr } = computeUpcomingWeekendRange();
+    const { thisWeekend, nextWeekend } = computeTwoWeekendRanges();
+    const weekendRanges = [
+      { start: thisWeekend.saturday, end: thisWeekend.sunday, label: 'this weekend' },
+      { start: nextWeekend.saturday, end: nextWeekend.sunday, label: 'next weekend' }
+    ];
     
     const fields = 'event:(id,name,description,url,datetime_start,datetime_end,location_summary,is_free,restrictions,admission_prices,images),image:(transforms),transform:(url,transformation_id)';
     
     const allAucklandEvents: any[] = [];
-    let currentOffset = 0;
     const maxRows = 20;
-    let hasMore = true;
 
-    console.log(`Starting full fetch for Auckland (Location ID: ${locationId}) from ${startDateStr} to ${endDateStr}`);
+    for (const range of weekendRanges) {
+      let currentOffset = 0;
+      let hasMore = true;
 
-    while (hasMore) {
-      try {
-        console.log(`Fetching offset ${currentOffset}...`);
-        const response = await fetch(`https://api.eventfinda.co.nz/v2/events.json?rows=${maxRows}&offset=${currentOffset}&location=${locationId}&start_date=${startDateStr}&end_date=${endDateStr}&fields=${fields}&order=popularity`, {
-          headers: {
-            'Authorization': `Basic ${token}`,
-            'User-Agent': 'AucklandWeekendPlanner/1.0'
-          }
-        });
+      console.log(`Starting full fetch for Auckland (Location ID: ${locationId}) for ${range.label} from ${range.start} to ${range.end}`);
 
-        if (response.ok) {
-          const data: any = await response.json();
-          const fetchedEvents = data.events || [];
-          
-          allAucklandEvents.push(...fetchedEvents);
-          console.log(`Successfully fetched ${fetchedEvents.length} events.`);
+      while (hasMore) {
+        try {
+          console.log(`Fetching ${range.label} offset ${currentOffset}...`);
+          const response = await fetch(`https://api.eventfinda.co.nz/v2/events.json?rows=${maxRows}&offset=${currentOffset}&location=${locationId}&start_date=${range.start}&end_date=${range.end}&fields=${fields}&order=popularity`, {
+            headers: {
+              'Authorization': `Basic ${token}`,
+              'User-Agent': 'AucklandWeekendPlanner/1.0'
+            }
+          });
 
-          if (fetchedEvents.length < maxRows) {
-            hasMore = false;
+          if (response.ok) {
+            const data: any = await response.json();
+            const fetchedEvents = data.events || [];
+            
+            allAucklandEvents.push(...fetchedEvents);
+            console.log(`Successfully fetched ${fetchedEvents.length} events for ${range.label}.`);
+
+            if (fetchedEvents.length < maxRows) {
+              hasMore = false;
+            } else {
+              currentOffset += maxRows;
+            }
           } else {
-            currentOffset += maxRows;
+            console.error(`API Error: Status ${response.status} - ${response.statusText}`);
+            if (response.status === 429) {
+              console.log("Hit rate limit, waiting 5 seconds before retrying...");
+              await sleep(5000);
+              continue;
+            }
+            hasMore = false;
           }
-        } else {
-          console.error(`API Error: Status ${response.status} - ${response.statusText}`);
-          if (response.status === 429) {
-            console.log("Hit rate limit, waiting 5 seconds before retrying...");
-            await sleep(5000);
-            continue;
-          }
+        } catch (err) {
+          console.error(`Fetch failed at offset ${currentOffset} for ${range.label}:`, err);
           hasMore = false;
         }
-      } catch (err) {
-        console.error(`Fetch failed at offset ${currentOffset}:`, err);
-        hasMore = false;
+        
+        await sleep(2000); 
       }
-      
-      await sleep(2000); 
     }
     
-    console.log(`Fetch complete. Total events retrieved: ${allAucklandEvents.length}. Filtering and processing...`);
+    // Deduplicate fetched events by event ID in memory
+    const seenEventIds = new Set();
+    const uniqueAucklandEvents: any[] = [];
+    for (const item of allAucklandEvents) {
+      if (!item.id || seenEventIds.has(item.id)) continue;
+      seenEventIds.add(item.id);
+      uniqueAucklandEvents.push(item);
+    }
+
+    console.log(`Fetch complete. Total events retrieved: ${uniqueAucklandEvents.length}. Filtering and processing...`);
 
     // Filter out inappropriate content before storing
-    const appropriateEvents = allAucklandEvents.filter(item => isAppropriateEvent(item));
-    const filteredCount = allAucklandEvents.length - appropriateEvents.length;
+    const appropriateEvents = uniqueAucklandEvents.filter(item => isAppropriateEvent(item));
+    const filteredCount = uniqueAucklandEvents.length - appropriateEvents.length;
     if (filteredCount > 0) {
       console.log(`Filtered out ${filteredCount} inappropriate events.`);
     }
@@ -128,8 +144,8 @@ export const handler = async (event: any) => {
       throw new Error('TABLE_NAME is required');
     }
     const existingRecords = await loadAllStoredEvents(docClient, tableName, {
-      start: startDateStr,
-      end: endDateStr
+      start: thisWeekend.saturday,
+      end: nextWeekend.sunday
     });
     
     for (const item of appropriateEvents) {

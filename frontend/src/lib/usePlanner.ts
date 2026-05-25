@@ -1,11 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { trackGenerateItinerary } from "./gtag";
-import type { Audience, Budget, TripDays, Region, DayPlan, EventData, WeatherForecast, WeatherData } from "../types";
+import { computeTwoWeekendOptions } from "./dateUtils";
+import type { Audience, Budget, SelectedDate, Region, DayPlan, EventData, WeatherForecast, WeatherData } from "../types";
 
 export function usePlanner() {
   const [audience, setAudience] = useState<Audience>("Friends");
   const [budget, setBudget] = useState<Budget>("Medium");
-  const [tripDays, setTripDays] = useState<TripDays>("Saturday");
+  
+  // Compute available dates dynamically based on current date
+  const availableDates = useMemo(() => computeTwoWeekendOptions(), []);
+  
+  // Default selection: first available weekend date (usually Saturday)
+  const defaultDate = availableDates.thisWeekend[0] || availableDates.nextWeekend[0];
+  const [selectedDates, setSelectedDates] = useState<SelectedDate[]>(defaultDate ? [defaultDate] : []);
+  
   const [region, setRegion] = useState<Region[]>(["Central Auckland"]);
 
   const [showPreferences, setShowPreferences] = useState(true);
@@ -80,6 +88,17 @@ export function usePlanner() {
     });
   };
 
+  const toggleDate = (date: SelectedDate) => {
+    setSelectedDates((prev) => {
+      const exists = prev.some((d) => d.date === date.date);
+      if (exists) {
+        if (prev.length === 1) return prev; // Keep at least one date selected
+        return prev.filter((d) => d.date !== date.date);
+      }
+      return [...prev, date];
+    });
+  };
+
   const handlePlanWeekend = async () => {
     trackGenerateItinerary(region.join(", "));
     setIsLoading(true);
@@ -104,9 +123,10 @@ export function usePlanner() {
         body: JSON.stringify({
           audience,
           budget,
-          tripDays,
+          selectedDates: selectedDates.map((d) => d.date),
+          tripDays: selectedDates.map((d) => d.dayName).join(" & "), // legacy compat
           region,
-          query: `Plan a ${tripDays} weekend in ${region.join(", ")} for ${audience} with ${budget} budget.`,
+          query: `Plan a weekend itinerary for ${selectedDates.map(d => `${d.dayName} (${d.label})`).join(", ")} in ${region.join(", ")} for ${audience} with ${budget} budget.`,
         }),
       });
 
@@ -221,7 +241,7 @@ export function usePlanner() {
   return {
     audience, setAudience,
     budget, setBudget,
-    tripDays, setTripDays,
+    selectedDates, toggleDate, availableDates,
     region, toggleRegion,
     showPreferences, setShowPreferences,
     isLoading,

@@ -3,16 +3,17 @@
 import { motion } from "framer-motion";
 import { Sparkles, Users, Wallet, CalendarDays, Map } from "lucide-react";
 import { getWeatherHint, weatherEmoji } from "./WeatherWidget";
-import { audienceOptions, budgetOptions, tripDayOptions, regionOptions, choicePill, choicePillActive } from "../../lib/constants";
-import type { Audience, Budget, TripDays, Region, WeatherForecast } from "../../types";
+import { audienceOptions, budgetOptions, regionOptions, choicePill, choicePillActive } from "../../lib/constants";
+import type { Audience, Budget, SelectedDate, Region, WeatherForecast } from "../../types";
 
 interface PreferencePanelProps {
   audience: Audience;
   setAudience: (v: Audience) => void;
   budget: Budget;
   setBudget: (v: Budget) => void;
-  tripDays: TripDays;
-  setTripDays: (v: TripDays) => void;
+  selectedDates: SelectedDate[];
+  toggleDate: (v: SelectedDate) => void;
+  availableDates: { thisWeekend: SelectedDate[]; nextWeekend: SelectedDate[] };
   region: Region[];
   toggleRegion: (v: Region) => void;
   weatherForecast: WeatherForecast[];
@@ -22,7 +23,8 @@ interface PreferencePanelProps {
 export default function PreferencePanel({
   audience, setAudience,
   budget, setBudget,
-  tripDays, setTripDays,
+  selectedDates, toggleDate,
+  availableDates,
   region, toggleRegion,
   weatherForecast,
   onGenerate
@@ -90,28 +92,67 @@ export default function PreferencePanel({
 
         {/* When — with weather hints */}
         <div className="bg-white/40 dark:bg-zinc-800/40 border border-white/60 dark:border-zinc-700/60 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
+          <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2">
             <CalendarDays className="w-4 h-4 text-blue-500" /> When?
           </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {tripDayOptions.map((o) => {
-              const hint = getWeatherHint(weatherForecast, o);
-              return (
-                <button
-                  key={o}
-                  onClick={() => setTripDays(o)}
-                  className={tripDays === o ? choicePillActive : choicePill}
-                >
-                  {o}
-                  {hint && (
-                    <span className="weather-hint">
-                      <span className="text-sm">{weatherEmoji(hint.icon)}</span>
-                      {hint.temp}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          <div className="space-y-3">
+            {availableDates.thisWeekend.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">
+                  This Weekend
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {availableDates.thisWeekend.map((o) => {
+                    const isSelected = selectedDates.some((d) => d.date === o.date);
+                    const hint = getWeatherHint(weatherForecast, o.date);
+                    return (
+                      <button
+                        key={o.date}
+                        onClick={() => toggleDate(o)}
+                        className={isSelected ? choicePillActive : choicePill}
+                      >
+                        <span className="text-[11px] md:text-xs font-semibold">{o.label}</span>
+                        {hint && (
+                          <span className="weather-hint mt-0.5">
+                            <span className="text-xs md:text-sm">{weatherEmoji(hint.icon)}</span>
+                            <span className="text-[9px] md:text-[10px] ml-0.5">{hint.temp}</span>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {availableDates.nextWeekend.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">
+                  Next Weekend
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {availableDates.nextWeekend.map((o) => {
+                    const isSelected = selectedDates.some((d) => d.date === o.date);
+                    const hint = getWeatherHint(weatherForecast, o.date);
+                    return (
+                      <button
+                        key={o.date}
+                        onClick={() => toggleDate(o)}
+                        className={isSelected ? choicePillActive : choicePill}
+                      >
+                        <span className="text-[11px] md:text-xs font-semibold">{o.label}</span>
+                        {hint && (
+                          <span className="weather-hint mt-0.5">
+                            <span className="text-xs md:text-sm">{weatherEmoji(hint.icon)}</span>
+                            <span className="text-[9px] md:text-[10px] ml-0.5">{hint.temp}</span>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

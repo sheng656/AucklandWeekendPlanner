@@ -1,8 +1,7 @@
-import type { Audience, Budget, TripDays, Region } from "../types";
+import type { Audience, Budget, Region } from "../types";
 
 export const audienceOptions: Audience[] = ["Couples", "Friends", "Family", "Solo"];
 export const budgetOptions: Budget[] = ["Free", "Low", "Medium", "High"];
-export const tripDayOptions: TripDays[] = ["Saturday", "Sunday", "Both Days"];
 export const regionOptions: Region[] = [
   "Central Auckland",
   "East Auckland",

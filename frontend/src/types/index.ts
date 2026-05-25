@@ -1,6 +1,10 @@
 export type Audience = "Couples" | "Friends" | "Family" | "Solo";
 export type Budget = "Free" | "Low" | "Medium" | "High";
-export type TripDays = "Saturday" | "Sunday" | "Both Days";
+export interface SelectedDate {
+  date: string;       // ISO "YYYY-MM-DD"
+  dayName: string;    // "Saturday" or "Sunday"
+  label: string;      // "Sat May 24" (for display)
+}
 export type Region =
   | "Central Auckland"
   | "East Auckland"

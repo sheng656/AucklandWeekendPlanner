@@ -6,25 +6,16 @@ import { Cloud, Droplets, Wind, ChevronDown } from "lucide-react";
 
 import type { WeatherData, WeatherForecast, WeatherCurrent } from "../../types";
 
-// Map day option to forecast for inline hint
+// Map exact date to forecast for inline hint
 export function getWeatherHint(
   forecast: WeatherForecast[],
-  dayOption: string
+  isoDate: string
 ): { icon: string; temp: string } | null {
   if (!forecast.length) return null;
   
-  const target = forecast.find(f => {
-    const day = new Date(f.date).getDay();
-    if (dayOption === "Saturday") return day === 6;
-    if (dayOption === "Sunday") return day === 0;
-    return false;
-  });
-  
-  if (dayOption === "Both Days") {
-    return null;
-  }
-
+  const target = forecast.find(f => f.date === isoDate);
   if (!target) return null;
+  
   return { icon: target.icon, temp: `${target.temp_min}–${target.temp_max}°` };
 }
 

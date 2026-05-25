@@ -15,7 +15,7 @@ export default function Home() {
   const {
     audience, setAudience,
     budget, setBudget,
-    tripDays, setTripDays,
+    selectedDates, toggleDate, availableDates,
     region, toggleRegion,
     showPreferences,
     isLoading,
@@ -70,14 +70,15 @@ export default function Home() {
           </div>
           <WeatherWidget weather={weatherData} />
         </motion.header>
-
+ 
         {/* ===== CONTENT ===== */}
         <AnimatePresence mode="wait">
           {showPreferences ? (
             <PreferencePanel
               audience={audience} setAudience={setAudience}
               budget={budget} setBudget={setBudget}
-              tripDays={tripDays} setTripDays={setTripDays}
+              selectedDates={selectedDates} toggleDate={toggleDate}
+              availableDates={availableDates}
               region={region} toggleRegion={toggleRegion}
               weatherForecast={weatherForecast}
               onGenerate={handlePlanWeekend}

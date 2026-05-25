@@ -12,7 +12,7 @@ import {
   parseDetailEvent,
 } from './scraper';
 import { loadAllStoredEvents, persistEventWithDedupe } from '../shared/dedupe';
-import { sleep, fetchWithRetry, computeUpcomingWeekendRange } from '../shared/utils';
+import { sleep, fetchWithRetry, computeTwoWeekendRanges } from '../shared/utils';
 
 const ddbClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
@@ -91,61 +91,70 @@ export const handler = async (): Promise<{ statusCode: number; body: string }> =
     throw new Error('TABLE_NAME is required');
   }
 
-  const { startDate, endDate } = computeUpcomingWeekendRange();
-  console.log(`OurAuckland ingest started for weekend ${startDate} to ${endDate}`);
+  const { thisWeekend, nextWeekend } = computeTwoWeekendRanges();
+  console.log(`OurAuckland ingest started for range ${thisWeekend.saturday} to ${nextWeekend.sunday}`);
 
-  const allCandidates: ReturnType<typeof extractListCandidates> = [];
+  const allCandidates: (ReturnType<typeof extractListCandidates>[number] & { fallbackStartDate: string })[] = [];
   const pageFingerprints = new Set<string>();
   const existingRecords = await loadAllStoredEvents(docClient, tableName, {
-    start: startDate,
-    end: endDate
+    start: thisWeekend.saturday,
+    end: nextWeekend.sunday
   });
 
-  for (let page = 1; page <= maxPages; page += 1) {
-    const body = buildSurfaceFormBody(page, startDate, endDate);
+  const weekendRanges = [
+    { start: thisWeekend.saturday, end: thisWeekend.sunday, label: 'this weekend' },
+    { start: nextWeekend.saturday, end: nextWeekend.sunday, label: 'next weekend' }
+  ];
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+  for (const range of weekendRanges) {
+    console.log(`Paginating for ${range.label} (${range.start} to ${range.end})...`);
+    for (let page = 1; page <= maxPages; page += 1) {
+      const body = buildSurfaceFormBody(page, range.start, range.end);
 
-    let html = '';
-    try {
-      const response = await fetchWithRetry(endpoint, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          accept: 'text/html, */*; q=0.01',
-          'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'x-requested-with': 'XMLHttpRequest',
-          'user-agent': 'AucklandWeekendPlanner/1.0',
-          origin: 'https://ourauckland.aucklandcouncil.govt.nz',
-          referer: 'https://ourauckland.aucklandcouncil.govt.nz/events/',
-        },
-        body,
-      });
-      html = await response.text();
-    } finally {
-      clearTimeout(timer);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+      let html = '';
+      try {
+        const response = await fetchWithRetry(endpoint, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            accept: 'text/html, */*; q=0.01',
+            'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'x-requested-with': 'XMLHttpRequest',
+            'user-agent': 'AucklandWeekendPlanner/1.0',
+            origin: 'https://ourauckland.aucklandcouncil.govt.nz',
+            referer: 'https://ourauckland.aucklandcouncil.govt.nz/events/',
+          },
+          body,
+        });
+        html = await response.text();
+      } finally {
+        clearTimeout(timer);
+      }
+
+      const listCandidates = extractListCandidates(html, 'https://ourauckland.aucklandcouncil.govt.nz');
+      const fingerprint = listCandidates.map((c) => c.detailUrl).slice(0, 20).join('|');
+
+      if (!listCandidates.length) {
+        console.log(`No list candidates found on page ${page} for ${range.label}. Stop pagination.`);
+        break;
+      }
+      if (fingerprint && pageFingerprints.has(fingerprint)) {
+        console.log(`Duplicate page fingerprint on page ${page} for ${range.label}. Stop pagination.`);
+        break;
+      }
+
+      pageFingerprints.add(fingerprint);
+      allCandidates.push(...listCandidates.map((c) => ({ ...c, fallbackStartDate: range.start })));
+      console.log(`Page ${page} (${range.label}): extracted ${listCandidates.length} candidates`);
+
+      await sleep(listDelayMs);
     }
-
-    const listCandidates = extractListCandidates(html, 'https://ourauckland.aucklandcouncil.govt.nz');
-    const fingerprint = listCandidates.map((c) => c.detailUrl).slice(0, 20).join('|');
-
-    if (!listCandidates.length) {
-      console.log(`No list candidates found on page ${page}. Stop pagination.`);
-      break;
-    }
-    if (fingerprint && pageFingerprints.has(fingerprint)) {
-      console.log(`Duplicate page fingerprint on page ${page}. Stop pagination.`);
-      break;
-    }
-
-    pageFingerprints.add(fingerprint);
-    allCandidates.push(...listCandidates);
-    console.log(`Page ${page}: extracted ${listCandidates.length} candidates`);
-
-    await sleep(listDelayMs);
   }
 
+  // Deduplicate candidates by detailUrl
   const dedupCandidates = Array.from(new Map(allCandidates.map((c) => [c.detailUrl, c])).values()).slice(0, maxDetails);
   console.log(`Proceeding with ${dedupCandidates.length} unique detail pages`);
 
@@ -182,7 +191,7 @@ export const handler = async (): Promise<{ statusCode: number; body: string }> =
         warnings.push('weekend_unconfirmed_from_text');
       }
 
-      const eventStart = parsed.startAtIso || `${startDate}T00:00:00.000Z`;
+      const eventStart = parsed.startAtIso || `${candidate.fallbackStartDate}T00:00:00.000Z`;
       const locationSummary = parsed.locationText || 'Unknown Location';
       const mappedRegion = mapToMacroRegion(locationSummary);
       const isFree = estimateIsFree(parsed.costText);
@@ -221,8 +230,8 @@ export const handler = async (): Promise<{ statusCode: number; body: string }> =
   }
 
   const summary = {
-    startDate,
-    endDate,
+    startDate: thisWeekend.saturday,
+    endDate: nextWeekend.sunday,
     discoveredCandidates: allCandidates.length,
     processedDetails: dedupCandidates.length,
     stored,
