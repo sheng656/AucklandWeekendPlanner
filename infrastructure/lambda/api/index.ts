@@ -16,6 +16,82 @@ function isAppropriateForFamily(event: { name: string; description?: string }): 
   return !ADULT_KEYWORDS.some(kw => text.includes(kw));
 }
 
+interface Activity {
+  title: string;
+  time: string;
+  cost: string;
+  description: string;
+  location: string;
+  eventId: string | null;
+}
+
+interface TimeSlot {
+  period: string;
+  activities: Activity[];
+}
+
+interface DayPlan {
+  dayName: string;
+  date: string;
+  timeSlots: TimeSlot[];
+  estimatedTotal: string;
+}
+
+interface Itinerary {
+  days: DayPlan[];
+}
+
+function validateItinerary(data: any): Itinerary {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Root is not an object');
+  }
+  if (!Array.isArray(data.days)) {
+    throw new Error('days must be an array');
+  }
+
+  const validatedDays: DayPlan[] = [];
+
+  for (const day of data.days) {
+    if (!day || typeof day !== 'object') continue;
+    
+    const validatedTimeSlots: TimeSlot[] = [];
+    if (Array.isArray(day.timeSlots)) {
+      for (const slot of day.timeSlots) {
+        if (!slot || typeof slot !== 'object') continue;
+        
+        const validatedActivities: Activity[] = [];
+        if (Array.isArray(slot.activities)) {
+          for (const act of slot.activities) {
+            if (!act || typeof act !== 'object') continue;
+            validatedActivities.push({
+              title: String(act.title || 'Activity'),
+              time: String(act.time || ''),
+              cost: String(act.cost || ''),
+              description: String(act.description || ''),
+              location: String(act.location || ''),
+              eventId: act.eventId ? String(act.eventId) : null,
+            });
+          }
+        }
+        
+        validatedTimeSlots.push({
+          period: String(slot.period || 'Activity'),
+          activities: validatedActivities,
+        });
+      }
+    }
+    
+    validatedDays.push({
+      dayName: String(day.dayName || 'Day'),
+      date: String(day.date || ''),
+      timeSlots: validatedTimeSlots,
+      estimatedTotal: String(day.estimatedTotal || ''),
+    });
+  }
+
+  return { days: validatedDays };
+}
+
 export const handler = async (event: any) => {
   console.log("Handler invoked with event:", JSON.stringify(event));
   
@@ -30,8 +106,11 @@ export const handler = async (event: any) => {
     const ddbClient = new DynamoDBClient({});
     const docClient = DynamoDBDocumentClient.from(ddbClient);
     
-    // Check Cache first
-    const reqHash = crypto.createHash('md5').update(JSON.stringify({ audience, budget, tripDays, region, userQuery })).digest('hex');
+    const { startDate, endDate } = computeUpcomingWeekendRange();
+    console.log(`Upcoming weekend range: ${startDate} to ${endDate}`);
+
+    // Check Cache first (includes dates to avoid serving cache from a past weekend)
+    const reqHash = crypto.createHash('md5').update(JSON.stringify({ audience, budget, tripDays, region, userQuery, startDate, endDate })).digest('hex');
     const cacheKey = `CACHE#${reqHash}`;
     
     try {
@@ -51,7 +130,6 @@ export const handler = async (event: any) => {
       console.log("Cache check failed, continuing", e);
     }
 
-    const { startDate, endDate } = computeUpcomingWeekendRange();
     console.log(`Querying events for weekend: ${startDate} to ${endDate}`);
 
     const query = new QueryCommand({
@@ -315,9 +393,10 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
       }
-      itinerary = JSON.parse(jsonStr);
+      const parsedJson = JSON.parse(jsonStr);
+      itinerary = validateItinerary(parsedJson);
     } catch (parseErr) {
-      console.error("Failed to parse AI JSON response, returning raw text:", parseErr);
+      console.error("Failed to parse or validate AI JSON response, returning raw text:", parseErr);
       // Fallback: return as raw itinerary text
       return {
         statusCode: 200,

@@ -140,7 +140,7 @@ export class InfrastructureStack extends cdk.Stack {
     });
 
     // API Access
-    dataTable.grantReadData(apiLambda);
+    dataTable.grantReadWriteData(apiLambda);
     apiLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['ssm:GetParametersByPath', 'ssm:GetParameter'],
       resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/AucklandPlanner/Config/*`],
@@ -149,7 +149,7 @@ export class InfrastructureStack extends cdk.Stack {
     // Bedrock Access (Streaming support requires InvokeModelWithResponseStream)
     apiLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-      resources: ['*'], // Specify model ARN safely in prod
+      resources: [`arn:aws:bedrock:${this.region}::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0`],
     }));
 
     // 4. API Gateway

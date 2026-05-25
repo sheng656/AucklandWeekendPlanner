@@ -1,247 +1,47 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ExternalLink, Compass } from "lucide-react";
 import WeatherWidget from "./components/WeatherWidget";
 import PreferencePanel from "./components/PreferencePanel";
 import ResultsSection from "./components/ResultsSection";
 import ScrollToTop from "./components/ScrollToTop";
-import { trackGenerateItinerary } from "../lib/gtag";
 import { SOURCE_SITES } from "../lib/sourceUtils";
-
-import type { Audience, Budget, TripDays, Region, Activity, TimeSlot, DayPlan, EventData, WeatherForecast } from "../types";
+import { usePlanner } from "../lib/usePlanner";
 
 export default function Home() {
-  const [audience, setAudience] = useState<Audience>("Friends");
-  const [budget, setBudget] = useState<Budget>("Medium");
-  const [tripDays, setTripDays] = useState<TripDays>("Saturday");
-  const [region, setRegion] = useState<Region[]>(["Central Auckland"]);
-
-  const [showPreferences, setShowPreferences] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const [itinerary, setItinerary] = useState<DayPlan[] | null>(null);
-  const [rawItinerary, setRawItinerary] = useState<string | null>(null);
-  const [recommendedEvents, setRecommendedEvents] = useState<EventData[]>([]);
-  const [otherEvents, setOtherEvents] = useState<EventData[]>([]);
-
-  const [moreEventsOpen, setMoreEventsOpen] = useState(false);
-  const [swappingSlot, setSwappingSlot] = useState<{
-    dayIdx: number;
-    slotIdx: number;
-    actIdx: number;
-  } | null>(null);
+  const planner = usePlanner();
+  const {
+    audience, setAudience,
+    budget, setBudget,
+    tripDays, setTripDays,
+    region, toggleRegion,
+    showPreferences,
+    isLoading,
+    itinerary,
+    rawItinerary,
+    recommendedEvents,
+    otherEvents,
+    moreEventsOpen, setMoreEventsOpen,
+    swappingSlot,
+    weatherForecast,
+    weatherData,
+    handlePlanWeekend,
+    handleReset,
+    handleRemoveActivity,
+    handleSelectEvent
+  } = planner;
 
   const moreEventsRef = useRef<HTMLDivElement>(null);
 
-  // Weather data for preference hints
-  const [weatherForecast, setWeatherForecast] = useState<WeatherForecast[]>([]);
-  const [weatherData, setWeatherData] = useState<any | null>(null);
-
-  useEffect(() => {
-    fetch("/api/weather")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.forecast) setWeatherForecast(data.forecast);
-        if (!data.error) setWeatherData(data);
-      })
-      .catch(() => {});
-  }, []);
-
-  // Load saved itinerary on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("saved_itinerary");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.itinerary) {
-          setItinerary(parsed.itinerary);
-          setRecommendedEvents(parsed.recommendedEvents || []);
-          setOtherEvents(parsed.otherEvents || []);
-          if (parsed.rawItinerary) setRawItinerary(parsed.rawItinerary);
-          setShowPreferences(false);
-        }
-      } catch (e) {
-        console.error("Failed to parse saved itinerary", e);
-      }
-    }
-  }, []);
-
-  // Save itinerary when it changes
-  useEffect(() => {
-    if (itinerary || rawItinerary) {
-      localStorage.setItem("saved_itinerary", JSON.stringify({
-        itinerary,
-        rawItinerary,
-        recommendedEvents,
-        otherEvents
-      }));
-    } else {
-      localStorage.removeItem("saved_itinerary");
-    }
-  }, [itinerary, rawItinerary, recommendedEvents, otherEvents]);
-
-  const toggleRegion = (r: Region) => {
-    setRegion((prev) => {
-      if (prev.includes(r)) {
-        if (prev.length === 1) return prev; // Keep at least one
-        return prev.filter((item) => item !== r);
-      }
-      return [...prev, r];
-    });
-  };
-
-  const handlePlanWeekend = async () => {
-    trackGenerateItinerary(region.join(", "));
-    setIsLoading(true);
-    setShowPreferences(false);
-    setItinerary(null);
-    setRawItinerary(null);
-    setRecommendedEvents([]);
-    setOtherEvents([]);
-    setSwappingSlot(null);
-    setMoreEventsOpen(false);
-
-    try {
-      let apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (apiUrl) {
-        apiUrl = apiUrl.replace(/\/+$/, '');
-      } else {
-        apiUrl = "/api/v2/plan";
-      }
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          audience,
-          budget,
-          tripDays,
-          region,
-          query: `Plan a ${tripDays} weekend in ${region.join(", ")} for ${audience} with ${budget} budget.`,
-        }),
-      });
-
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
-
-      const data = await response.json();
-
-      if (data.success) {
-        if (data.itinerary?.days) {
-          setItinerary(data.itinerary.days);
-        } else if (data.rawItinerary) {
-          setRawItinerary(data.rawItinerary);
-        }
-        if (data.recommendedEvents) setRecommendedEvents(data.recommendedEvents);
-        if (data.otherEvents) setOtherEvents(data.otherEvents);
-      } else {
-        throw new Error(data.error || "Failed to generate itinerary");
-      }
-    } catch (error) {
-      console.error("API Error:", error);
-      // Show a friendly error state
-      setRawItinerary(
-        `We encountered an issue connecting to the planning service. Please try again in a moment.`
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleReset = () => {
-    if (itinerary || rawItinerary) {
-      if (!window.confirm("Are you sure you want to start over? Your current itinerary will be lost.")) {
-        return;
-      }
-    }
-    setShowPreferences(true);
-    setItinerary(null);
-    setRawItinerary(null);
-    setRecommendedEvents([]);
-    setOtherEvents([]);
-    setSwappingSlot(null);
-    setMoreEventsOpen(false);
-  };
-
-  const handleRemoveActivity = (dayIdx: number, slotIdx: number, actIdx: number) => {
-    if (!itinerary) return;
-    const newPlan = [...itinerary];
-    const slot = newPlan[dayIdx]?.timeSlots[slotIdx];
-    if (!slot) return;
-    
-    const removedEventId = slot.activities[actIdx].eventId;
-    
-    // Convert to a placeholder
-    slot.activities[actIdx] = {
-      title: "Available Slot",
-      time: slot.activities[actIdx].time,
-      cost: "",
-      description: "Click here to add an event from the Explore More section.",
-      location: "",
-      eventId: null,
-      isEmptyPlaceholder: true,
-    };
-
-    if (removedEventId) {
-      // Move from recommended to other
-      const eventToMove = recommendedEvents.find((e) => String(e.id) === String(removedEventId));
-      if (eventToMove) {
-        setRecommendedEvents((prev) => prev.filter((e) => String(e.id) !== String(removedEventId)));
-        setOtherEvents((prev) => [...prev, eventToMove]);
-      }
-    }
-    
-    setItinerary(newPlan);
-  };
-
   const handleSwapClick = (dayIdx: number, slotIdx: number, actIdx: number) => {
-    if (
-      swappingSlot?.dayIdx === dayIdx &&
-      swappingSlot?.slotIdx === slotIdx &&
-      swappingSlot?.actIdx === actIdx
-    ) {
-      // Toggle off
-      setSwappingSlot(null);
-      return;
-    }
-    setSwappingSlot({ dayIdx, slotIdx, actIdx });
-    setMoreEventsOpen(true);
-
+    planner.handleSwapClick(dayIdx, slotIdx, actIdx);
     // Smooth scroll to event selection
     setTimeout(() => {
       moreEventsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
-
-  const handleSelectEvent = useCallback(
-    (event: EventData) => {
-      if (!swappingSlot || !itinerary) return;
-
-      const { dayIdx, slotIdx, actIdx } = swappingSlot;
-      const newPlan = [...itinerary];
-      const slot = newPlan[dayIdx]?.timeSlots[slotIdx];
-      if (!slot) return;
-
-      // Replace the activity
-      slot.activities[actIdx] = {
-        title: event.name,
-        time: slot.activities[actIdx].time,
-        cost: event.is_free ? "Free" : slot.activities[actIdx].cost,
-        description: event.description || "",
-        location: event.location_summary || "",
-        eventId: event.id,
-      };
-
-      // Move event from "other" to "recommended"
-      setOtherEvents((prev) => prev.filter((e) => e.id !== event.id));
-      setRecommendedEvents((prev) => [...prev, event]);
-      setItinerary(newPlan);
-      setSwappingSlot(null);
-    },
-    [swappingSlot, itinerary]
-  );
-
-
 
   const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
 
