@@ -83,7 +83,7 @@ export class InfrastructureStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.minutes(15),
-      memorySize: 256,
+      memorySize: 512,
       environment: {
         TABLE_NAME: dataTable.tableName,
         IMAGE_BUCKET_NAME: imageBucket.bucketName,
@@ -110,7 +110,7 @@ export class InfrastructureStack extends cdk.Stack {
       handler: 'handler',
       runtime: lambda.Runtime.NODEJS_22_X,
       timeout: cdk.Duration.minutes(15),
-      memorySize: 256,
+      memorySize: 512,
       environment: {
         TABLE_NAME: dataTable.tableName,
         IMAGE_BUCKET_NAME: imageBucket.bucketName,
@@ -149,7 +149,16 @@ export class InfrastructureStack extends cdk.Stack {
     // Bedrock Access (Streaming support requires InvokeModelWithResponseStream)
     apiLambda.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-      resources: [`arn:aws:bedrock:${this.region}::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0`],
+      resources: [
+        // Regionless Foundation Models
+        'arn:aws:bedrock:::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0',
+        'arn:aws:bedrock:::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0',
+        // Regional Foundation Models
+        `arn:aws:bedrock:${this.region}::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0`,
+        `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`,
+        // Inference Profiles
+        `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/global.anthropic.claude-haiku-4-5-20251001-v1:0`
+      ],
     }));
 
     // 4. API Gateway
