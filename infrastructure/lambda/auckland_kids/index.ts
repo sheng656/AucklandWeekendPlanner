@@ -35,8 +35,8 @@ export const handler = async (event: any) => {
       end: nextWeekend.sunday
     });
 
-    // Fetch recent events from Auckland for Kids WP API
-    const kidsResponse = await fetchWithRetry(`https://www.aucklandforkids.co.nz/wp-json/wp/v2/ajde_events?per_page=30&_embed`);
+    // Fetch recent events from Auckland for Kids WP API (Increased to 60 events)
+    const kidsResponse = await fetchWithRetry(`https://www.aucklandforkids.co.nz/wp-json/wp/v2/ajde_events?per_page=60&_embed`);
     if (!kidsResponse.ok) {
       throw new Error(`Auckland for Kids API failed: ${kidsResponse.status}`);
     }
@@ -48,16 +48,36 @@ export const handler = async (event: any) => {
       const detailUrl = item.link;
       const sourceEventId = String(item.id);
 
-      // 1. Fetch detail page for LD+JSON
-      let structuredData = null;
-      try {
-        const detailRes = await fetchWithRetry(detailUrl, { headers: { 'User-Agent': 'AucklandWeekendPlanner/1.0' } });
-        if (detailRes.ok) {
-          const html = await detailRes.text();
-          structuredData = extractLdJson(html);
+      // Check if we already have this event in DynamoDB to skip detail page fetch
+      const alreadyStored = existingRecords.find(
+        (r) => r.source === 'aucklandforkids' && String(r.source_event_id) === sourceEventId
+      );
+
+      let structuredData: any = null;
+      let isCached = false;
+
+      if (alreadyStored) {
+        console.log(`Event ${item.id} (${item.title.rendered}) already in database cache. Skipping detail page fetch.`);
+        structuredData = {
+          name: alreadyStored.name || item.title.rendered,
+          startDate: alreadyStored.datetime_start,
+          endDate: alreadyStored.datetime_end || undefined,
+          locationName: alreadyStored.location_summary,
+          isFree: alreadyStored.is_free,
+          costText: alreadyStored.cost_text || undefined,
+        };
+        isCached = true;
+      } else {
+        // 1. Fetch detail page for LD+JSON (only for new/uncached events)
+        try {
+          const detailRes = await fetchWithRetry(detailUrl, { headers: { 'User-Agent': 'AucklandWeekendPlanner/1.0' } });
+          if (detailRes.ok) {
+            const html = await detailRes.text();
+            structuredData = extractLdJson(html);
+          }
+        } catch (e) {
+          console.error(`Failed to fetch detail for ${detailUrl}`, e);
         }
-      } catch (e) {
-        console.error(`Failed to fetch detail for ${detailUrl}`, e);
       }
 
       if (!structuredData) {
@@ -67,7 +87,7 @@ export const handler = async (event: any) => {
 
       // 2. Map fields
       const name = cleanText(structuredData.name || item.title.rendered);
-      const description = cleanText(item.content.rendered.replace(/<[^>]*>/g, ''), 200); 
+      const description = alreadyStored?.description || cleanText(item.content.rendered.replace(/<[^>]*>/g, ''), 200); 
       
       if (!isAppropriateEvent({ name, description })) {
         console.log(`Skipping inappropriate event: ${name}`);
@@ -88,10 +108,10 @@ export const handler = async (event: any) => {
       const locationSummary = cleanText(locParts.length > 0 ? locParts.join(', ') : "Auckland");
       
       const regionIds = item.event_type_2 || [];
-      const mappedRegion = mapAucklandKidsRegion(regionIds);
+      const mappedRegion = alreadyStored?.mapped_region || mapAucklandKidsRegion(regionIds);
 
       // OPTIMIZATION: Check if event already exists
-      const existingMatch = findMatchingRecord(existingRecords, {
+      const existingMatch = alreadyStored || findMatchingRecord(existingRecords, {
         source: 'aucklandforkids',
         sourceEventId,
         name,
@@ -105,7 +125,7 @@ export const handler = async (event: any) => {
       let cloudfrontUrl = existingMatch?.image_url || '';
       const sourceImageUrl = item._embedded?.['wp:featuredmedia']?.[0]?.source_url || '';
       
-      if (sourceImageUrl && (!cloudfrontUrl || existingMatch?.source_image_url !== sourceImageUrl)) {
+      if (!isCached && sourceImageUrl && (!cloudfrontUrl || existingMatch?.source_image_url !== sourceImageUrl)) {
         try {
           console.log(`Processing image for kids event ${sourceEventId}: Downloading from ${sourceImageUrl}`);
           if (!dryRun) {
