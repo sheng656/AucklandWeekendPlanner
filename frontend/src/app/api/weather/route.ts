@@ -3,19 +3,12 @@ import { NextResponse } from 'next/server';
 const AUCKLAND_LAT = -36.8485;
 const AUCKLAND_LON = 174.7633;
 
-interface ForecastEntry {
-  dt: number;
-  main: { temp: number; temp_min: number; temp_max: number; humidity: number };
-  weather: { id: number; main: string; description: string; icon: string }[];
-  wind: { speed: number };
-}
-
 interface DailyForecast {
   date: string;
   dayName: string;
   temp_min: number;
   temp_max: number;
-  icon: string;
+  icon: string; // WMO weather code string
   description: string;
   humidity: number;
   windSpeed: number;
@@ -25,6 +18,27 @@ interface DailyForecast {
 const rateLimit = new Map<string, { count: number; expiresAt: number }>();
 const RATE_LIMIT_MAX = 20;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+// Helper to convert WMO code to human description
+function getWMODescription(code: number): string {
+  if (code === 0) return "Clear sky";
+  if (code === 1) return "Mainly clear";
+  if (code === 2) return "Partly cloudy";
+  if (code === 3) return "Overcast";
+  if (code === 45 || code === 48) return "Foggy";
+  if (code === 51 || code === 53 || code === 55) return "Drizzle";
+  if (code === 56 || code === 57) return "Freezing drizzle";
+  if (code === 61) return "Light rain";
+  if (code === 63) return "Moderate rain";
+  if (code === 65) return "Heavy rain";
+  if (code === 66 || code === 67) return "Freezing rain";
+  if (code === 71 || code === 73 || code === 75) return "Snowfall";
+  if (code === 77) return "Snow grains";
+  if (code === 80 || code === 81 || code === 82) return "Rain showers";
+  if (code === 85 || code === 86) return "Snow showers";
+  if (code >= 95) return "Thunderstorm";
+  return "Cloudy";
+}
 
 export async function GET(request: Request) {
   // Simple in-memory rate limiting
@@ -39,94 +53,55 @@ export async function GET(request: Request) {
   } else {
     rateLimit.set(ip, { count: 1, expiresAt: now + RATE_LIMIT_WINDOW_MS });
   }
-  const apiKey = process.env.OPENWEATHER_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'OpenWeather API key not configured' },
-      { status: 500 }
-    );
-  }
 
   try {
-    // Fetch 5-day / 3-hour forecast (free tier)
-    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${AUCKLAND_LAT}&lon=${AUCKLAND_LON}&appid=${apiKey}&units=metric`;
-    const forecastRes = await fetch(forecastUrl, { next: { revalidate: 1800 } }); // cache 30 min
+    // Fetch 14-day weather forecast with current weather from free Open-Meteo API
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${AUCKLAND_LAT}&longitude=${AUCKLAND_LON}&daily=weather_code,temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean,wind_speed_10m_max&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=Pacific/Auckland&forecast_days=14`;
 
-    if (!forecastRes.ok) {
-      const errText = await forecastRes.text();
-      console.error('OpenWeather forecast error:', forecastRes.status, errText);
+    const res = await fetch(url, { next: { revalidate: 1800 } });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('Open-Meteo API error:', res.status, errText);
       return NextResponse.json(
-        { error: `OpenWeather API error: ${forecastRes.status}` },
-        { status: forecastRes.status }
+        { error: `Open-Meteo API error: ${res.status}` },
+        { status: res.status }
       );
     }
 
-    const forecastData = await forecastRes.json();
-    const entries: ForecastEntry[] = forecastData.list || [];
+    const data = await res.json();
 
-    // Also fetch current weather
-    const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${AUCKLAND_LAT}&lon=${AUCKLAND_LON}&appid=${apiKey}&units=metric`;
-    const currentRes = await fetch(currentUrl, { next: { revalidate: 1800 } });
-    let current = null;
+    // Map current weather
+    const current = data.current ? {
+      temp: Math.round(data.current.temperature_2m),
+      icon: String(data.current.weather_code),
+      description: getWMODescription(data.current.weather_code),
+      humidity: Math.round(data.current.relative_humidity_2m),
+    } : null;
 
-    if (currentRes.ok) {
-      const currentData = await currentRes.json();
-      current = {
-        temp: Math.round(currentData.main.temp),
-        icon: currentData.weather[0]?.icon || '01d',
-        description: currentData.weather[0]?.description || 'clear sky',
-        humidity: currentData.main.humidity,
-      };
-    }
-
-    // Aggregate 3-hour entries into daily summaries using NZ timezone date key
-    const dailyMap = new Map<string, ForecastEntry[]>();
-    for (const entry of entries) {
-      // Use YYYY-MM-DD format in NZ timezone as key for consistent grouping
-      const nzDateStr = new Date(entry.dt * 1000).toLocaleDateString('en-CA', {
-        timeZone: 'Pacific/Auckland',
-      }); // en-CA gives YYYY-MM-DD format
-      if (!dailyMap.has(nzDateStr)) {
-        dailyMap.set(nzDateStr, []);
-      }
-      dailyMap.get(nzDateStr)!.push(entry);
-    }
-
+    // Map 14-day daily forecast
     const forecast: DailyForecast[] = [];
-    for (const [dateKey, dayEntries] of dailyMap) {
-      if (forecast.length >= 5) break;
+    const daily = data.daily || {};
+    const times = daily.time || [];
 
-      // Parse dateKey (YYYY-MM-DD) to get day of week in NZ timezone
+    for (let i = 0; i < times.length; i++) {
+      const dateKey = times[i];
       const [year, month, day] = dateKey.split('-').map(Number);
       const nzDate = new Date(year, month - 1, day);
-      const dayOfWeek = nzDate.getDay(); // 0=Sun, 6=Sat
-
-      // Find the midday entry (in NZ time) for representative weather icon
-      const middayEntry = dayEntries.find(e => {
-        const nzHour = parseInt(new Date(e.dt * 1000).toLocaleString('en-US', {
-          timeZone: 'Pacific/Auckland', hour: 'numeric', hour12: false,
-        }));
-        return nzHour >= 11 && nzHour <= 14;
-      }) || dayEntries[Math.floor(dayEntries.length / 2)];
-
-      const tempMin = Math.round(Math.min(...dayEntries.map(e => e.main.temp_min)));
-      const tempMax = Math.round(Math.max(...dayEntries.map(e => e.main.temp_max)));
-      const avgHumidity = Math.round(dayEntries.reduce((sum, e) => sum + e.main.humidity, 0) / dayEntries.length);
-      const avgWind = Math.round(dayEntries.reduce((sum, e) => sum + e.wind.speed, 0) / dayEntries.length * 10) / 10;
-
+      const dayOfWeek = nzDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const dayName = nzDate.toLocaleDateString('en-NZ', { weekday: 'short' });
 
       forecast.push({
         date: dateKey,
         dayName,
-        temp_min: tempMin,
-        temp_max: tempMax,
-        icon: middayEntry.weather[0]?.icon || '01d',
-        description: middayEntry.weather[0]?.description || 'clear sky',
-        humidity: avgHumidity,
-        windSpeed: avgWind,
-        isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
+        temp_min: Math.round(daily.temperature_2m_min?.[i] ?? 0),
+        temp_max: Math.round(daily.temperature_2m_max?.[i] ?? 0),
+        icon: String(daily.weather_code?.[i] ?? 0),
+        description: getWMODescription(daily.weather_code?.[i] ?? 0),
+        humidity: Math.round(daily.relative_humidity_2m_mean?.[i] ?? 0),
+        windSpeed: Math.round((daily.wind_speed_10m_max?.[i] ?? 0) * 10) / 10,
+        isWeekend,
       });
     }
 

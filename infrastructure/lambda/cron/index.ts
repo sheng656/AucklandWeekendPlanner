@@ -149,22 +149,15 @@ export const handler = async (event: any) => {
     });
     
     for (const item of appropriateEvents) {
-      const mappedRegion = mapToMacroRegion(item.location_summary || "");
-      
-      // OPTIMIZATION: Check if event already exists with same image
-      const existingMatch = findMatchingRecord(existingRecords, {
-        source: 'eventfinda',
-        sourceEventId: String(item.id),
-        name: item.name,
-        datetimeStart: item.datetime_start,
-        mappedRegion,
-        url: item.url,
-        description: item.description,
-      });
+      const sourceEventId = String(item.id);
 
-      let cloudfrontUrl = existingMatch?.image_url || '';
+      // Check for an exact ID match in the database first.
+      const alreadyStored = existingRecords.find(
+        (r) => r.source === 'eventfinda' && String(r.source_event_id) === sourceEventId
+      );
+
+      // Extract the original image URL from the API payload to check if it has changed.
       let originalImageUrl = "";
-
       if (item.images && item.images.images) {
         const imageList = Array.isArray(item.images.images) ? item.images.images : [item.images.images];
         const firstImage = imageList[0];
@@ -180,6 +173,29 @@ export const handler = async (event: any) => {
           originalImageUrl = targetTransform?.url || "";
         }
       }
+
+      // Fast-path cache bypass: if the exact event is already stored and its image URL matches,
+      // we can completely skip it. This avoids redundant cost-parsing, region mapping,
+      // and expensive SQS/DynamoDB writes for identical static events on subsequent cron runs.
+      if (alreadyStored && (!originalImageUrl || alreadyStored.source_image_url === originalImageUrl)) {
+        console.log(`Event ${item.id} (${item.name}) already in database cache with matching image. Skipping processing and DB write.`);
+        continue;
+      }
+
+      const mappedRegion = mapToMacroRegion(item.location_summary || "");
+      
+      // Look up cross-source duplicates if exact ID wasn't found in cache
+      const existingMatch = alreadyStored || findMatchingRecord(existingRecords, {
+        source: 'eventfinda',
+        sourceEventId,
+        name: item.name,
+        datetimeStart: item.datetime_start,
+        mappedRegion,
+        url: item.url,
+        description: item.description,
+      });
+
+      let cloudfrontUrl = existingMatch?.image_url || '';
 
       // Only download/upload image if it's new or missing
       if (originalImageUrl && (!cloudfrontUrl || existingMatch?.source_image_url !== originalImageUrl)) {

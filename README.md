@@ -29,7 +29,7 @@ Auckland Weekend Planner is a premium, AI-powered travel assistant designed spec
 
 ### 🛡️ Safety & Reliability
 - **Content Safety**: High-performance code-level keyword filtering and pre-filtering logic ensure family-friendly content without additional LLM invocation costs.
-- **Weather Awareness**: Real-time forecast integration via **OpenWeather API**, providing helpful hints and emoji-based weather status.
+- **Weather Awareness**: Real-time forecast integration via **Open-Meteo API**, providing helpful hints and emoji-based weather status.
 - **Rate-Limit Optimized**: Background data pipeline uses sequential, back-off-ready logic to respect API provider limits.
 
 ## 🏗️ Technical Stack
@@ -69,7 +69,6 @@ npx cdk deploy --profile YourProfile
 Create `frontend/.env.local`:
 ```env
 NEXT_PUBLIC_API_URL=https://<api-id>.execute-api.ap-southeast-2.amazonaws.com/
-OPENWEATHER_API_KEY=your_key
 ```
 
 > **Note on CORS & API URLs:**

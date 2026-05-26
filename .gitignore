@@ -9,5 +9,25 @@ TROUBLESHOOTING.md
 
 # Generated operational notes
 CODE_FIXES_APPLIED.md
-infrastructure/scratch/cleanup_data.ts
+
+# Scratch / temporary files
+infrastructure/scratch/
 infrastructure/response.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/

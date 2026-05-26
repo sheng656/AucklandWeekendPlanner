@@ -20,7 +20,6 @@ This directory contains the AWS CDK stack and Lambda handlers for the serverless
 
 ## Planned Features
 
-- Wire OpenWeather data into cron and planning prompt.
 - Narrow IAM permissions to specific Bedrock model ARNs.
 - Restrict CORS allowOrigins for production domains.
 - Add structured logging, metrics, and alarms.
@@ -34,8 +33,6 @@ This directory contains the AWS CDK stack and Lambda handlers for the serverless
 - Bedrock model access in ap-southeast-2
 - Eventfinda credentials
 
-Optional for future-compatible config:
-- OpenWeather API key
 
 ## Build and Deploy
 
@@ -62,7 +59,6 @@ Expected SSM path:
 
 - /AucklandPlanner/Config/EVENTFINDA_USERNAME
 - /AucklandPlanner/Config/EVENTFINDA_PASSWORD
-- /AucklandPlanner/Config/OPENWEATHER_API_KEY (reserved for upcoming weather integration)
 - INGEST_DRY_RUN=true can be used in a dev environment to run the ingest path without DynamoDB writes or image uploads.
 
 ## Useful Commands
