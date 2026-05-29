@@ -1,52 +1,63 @@
 # Auckland Weekend Planner 🚀
 
-Auckland Weekend Planner is a premium, AI-powered travel assistant designed specifically for the Auckland region. It blends real-time event data from Eventfinda with the intelligence of state-of-the-art LLMs to create personalized, interactive, and visually stunning weekend itineraries.
+Auckland Weekend Planner is a premium, AI-powered travel planning application designed specifically for the Auckland region. It aggregates real-time local event data from multiple sources and leverages a highly resilient, budget-optimized Multi-LLM chain to deliver personalized, interactive, and visually stunning weekend itineraries.
+
+---
+
+## 🤖 Resilient AI Copilot Agent (Interactive Timeline Assistant)
+
+The application features a conversational **AI Copilot (Itinerary Assistant)** that goes beyond generic advice—it possesses deep-timeline interaction capabilities to **modify your schedule on-screen in real-time** via structured commands (`REMOVE`, `ADD`, `SWAP`).
+
+### 🛡️ Resilient Multi-Tier LLM Fallback Chain
+To ensure maximum availability while operating at near **$0 serverless model costs**, the backend utilizes a resilient 3-Tier LLM Fallback Chain:
+1. **Tier 1 (Primary - Free)**: `gemini-2.5-flash-lite` via Google AI Studio (handles 75%+ of requests for lightning speed and zero cost).
+2. **Tier 2 (Secondary - Free)**: `gemini-2.5-flash` via Google AI Studio (triggers automatically on 429 quota exceed, timeouts, or JSON schema failures).
+3. **Tier 3 (Paid Backup - Haiku)**: `global.anthropic.claude-haiku-4-5-20251001-v1:0` via AWS Bedrock ap-southeast-2 (acts as a high-reasoning paid backup if the primary tier experiences service degradation).
+
+### ⚡ Caching, Limits & Security
+* **SSM Parameter Store**: Model credentials (like the Google AI Studio Key) are securely stored in **AWS SSM Parameter Store** at `/AucklandPlanner/Config/GEMINI_API_KEY` and loaded dynamically with warm-Lambda in-memory caching.
+* **Token-Saving Conversational Memory**: Supports N-turn dialogue awareness (maintaining the last 5 rounds). The frontend automatically cleans messages before transmission (stripping massive commands arrays and metadata) to minimize request size and conserve context tokens.
+* **MD5 Request Caching**: Hashes the user message and preference variables (`dates`, `budget`, `audience`, `region`, `chatHistory`) using MD5 into a `CACHE#<hash>` key in DynamoDB with a 1-hour TTL, serving duplicate requests instantly.
+* **Daily Rate Limiting**: Implements a strict security limit of 40 requests/IP/day using DynamoDB TTL, protecting key limits from depletion. IP addresses are hashed using SHA-256 (`ipHash`) for strict GDPR compliance.
+
+---
 
 ## ✨ Core Features
 
-### 🤖 Intelligent Planning
-- **Claude 4.5 Haiku Powered**: Uses the latest generation of Anthropic's models on Amazon Bedrock for lightning-fast, high-reasoning itinerary generation.
-- **Geographical Routing**: Intelligent filtering across 6 Auckland sub-regions (Central, North Shore, West, South, East, and Waiheke Island) using LLM-based spatial reasoning.
-- **Smart Constraints**: Tailors plans based on Audience (Couples, Families, Solo, Friends), Budget (Free to High), and specific Trip Days.
-
 ### 📅 Real-Time Event Integration
-- **Multi-Source Aggregation**: Blends events from multiple premium sources for maximum coverage:
-  - **Eventfinda API**: Direct integration with NZ's largest event platform.
-  - **OurAuckland**: Scrapes Auckland Council's official community event portal.
-  - **Auckland for Kids**: Hybrid REST/LD+JSON parsing for dedicated family and kids discovery.
-- **Intelligent Deduplication**: Advanced similarity scoring ensures no duplicate entries when an event is listed across multiple platforms.
-- **High-Fidelity Imagery**: Features an automated S3-based image proxy and CloudFront CDN to deliver optimized, high-speed event cover photos.
-- **Cost-Efficient Security**: Leverages **AWS SSM Parameter Store** for zero-cost, secure credential management instead of expensive Secrets Manager alternatives.
+* **Multi-Source Aggregation**: Scrapes and Aggregates Auckland community activities from:
+  * **Eventfinda API**: NZ's largest entertainment platform.
+  * **OurAuckland**: Auckland Council's official community portal.
+  * **Auckland for Kids**: Dedicated family-friendly scraper.
+* **Intelligent Deduplication**: Similarity scoring checks names and dates, preventing duplicate listings across multiple platforms.
+* **High-Fidelity Imagery**: Automates image caching via S3 and optimized delivery using CloudFront CDN.
 
-### 🗺️ Interactive Timeline Experience
-- **Dynamic Controls**: Remove activities you don't like or "Swap" them for curated alternatives in the same time slot.
-- **Slot Management**: Deleted items become interactive placeholders, allowing you to manually add events from a curated "Explore More" pool.
-- **Source-Aware Design**: Individual activities link directly back to their original source (Eventfinda, OurAuckland, etc.) with brand-specific styling.
-- **Attribution Footer**: Clear transparency with a dedicated footer linking to all data provider homepages.
-- **Responsive Design**: A premium glassmorphism UI that adapts perfectly:
-  - **Desktop**: Optimized side-by-side (Left Image / Right Text) list view.
-  - **Mobile**: High-impact vertical card view for on-the-go planning.
+### 🎨 Custom Glassmorphic Modals & Visual Polish
+* **Custom Confirm Modal (`ConfirmModal.tsx`)**: Replaced browser standard native `confirm()` alerts with gorgeous, state-driven custom modals using Framer Motion spring overlays.
+  * **Clear Chat**: Custom red-gradient Trash modal.
+  * **Start Over**: Accidental reset interceptor.
+  * **Activity Deletion**: Accidental single-tap trash clicks on mobile are blocked by confirmation checks.
+  * **Itinerary Overwriting**: Warns the user when clicking "Plan my weekend" in the preference panel if an itinerary is already active.
+* **Header & Icon Refinement**: Removed standard beta badges from the header, and added an absolute-positioned sparkling AI badge onto a pulsing sky-cyan glowing button aura that expands on hover.
 
-### 🛡️ Safety & Reliability
-- **Content Safety**: High-performance code-level keyword filtering and pre-filtering logic ensure family-friendly content without additional LLM invocation costs.
-- **Weather Awareness**: Real-time forecast integration via **Open-Meteo API**, providing helpful hints and emoji-based weather status.
-- **Rate-Limit Optimized**: Background data pipeline uses sequential, back-off-ready logic to respect API provider limits.
+### 📊 Hidden Public Analytics Dashboard
+Exposes a hidden monitoring page at `/metrics-dashboard` (accessible directly by URL, unlinked from standard UI controls). It displays real-time operational telemetry queried directly from Sydney's DynamoDB (`METRIC#LOG` records):
+* Total invocations, average response latencies, and token consumption charts.
+* Fallback ratios and model share percentages.
+* Lists detailed fallback incident errors and masked raw transaction logs.
+
+---
 
 ## 🏗️ Technical Stack
 
-- **Frontend**: Next.js 14+, Tailwind CSS, Framer Motion, Lucide Icons.
+- **Frontend**: Next.js 16+, React 19, Tailwind CSS, Framer Motion, Lucide Icons.
 - **API Layer**: AWS API Gateway + Lambda (**Node.js 22.x**).
-- **AI/LLM**: Amazon Bedrock (Claude 4.5 Haiku).
+- **AI/LLM**: Amazon Bedrock (Claude 4.5 Haiku) + Google AI Studio (Gemini 2.5).
 - **Data Persistence**: DynamoDB (Single-table design with TTL).
 - **Storage/CDN**: Amazon S3 + CloudFront (Image Caching).
 - **Infrastructure**: AWS CDK (Infrastructure as Code).
 
-### 🧪 Quality Assurance & Validation
-- **Comprehensive Testing**: Full-stack test coverage using **Jest**:
-  - **Backend**: Unit tests for scraper logic, JSON-LD extraction, and the hierarchical source prioritization logic.
-  - **Frontend**: Component testing for the UI layer and utility tests for brand-source mapping.
-- **Dry-run Mode**: Both ingest Lambdas support `INGEST_DRY_RUN=true`, which runs list/detail parsing and dedupe simulation without writing to DynamoDB or uploading images.
-- **Reliability Checks**: Integrated `AbortController` timeouts (15s) and rate-limit delays (1500ms) to ensure robust scraping under network variability.
+---
 
 ## 📂 Repository Layout
 
@@ -55,6 +66,8 @@ frontend/        Next.js web application
 infrastructure/  AWS CDK stack & Lambda handlers (Cron & API)
 deploy.ps1       One-click deployment helper script
 ```
+
+---
 
 ## 🚀 Quick Start (Local)
 
@@ -71,10 +84,6 @@ Create `frontend/.env.local`:
 NEXT_PUBLIC_API_URL=https://<api-id>.execute-api.ap-southeast-2.amazonaws.com/
 ```
 
-> **Note on CORS & API URLs:**
-> When running locally, ensure that your `NEXT_PUBLIC_API_URL` exactly matches the API Gateway endpoint deployed via CDK.
-> The backend AWS CDK stack is configured to allow CORS requests from `http://localhost:3000` (for local dev) and `https://weekend.sheng.nz` (for production). If you change the frontend port or domain, you must update the `corsPreflight` settings in `infrastructure-stack.ts` and re-deploy.
-
 ### 3. Start Development
 ```bash
 cd frontend
@@ -83,17 +92,6 @@ npm run dev
 ```
 Visit `http://localhost:3000` to start planning!
 
-## 🛣️ Roadmap
-- [x] Phase 1: Bug Fixes & Code Cleanup
-- [x] Phase 2: User Experience Enhancements
-- [x] Phase 3: Dark Mode Optimization
-- [x] Phase 4: UI Polish
-- [x] Phase 5: Component Refactoring
-- [x] Phase 6: Testing & Quality
-- [x] Phase 7: Infrastructure Optimization
-- [x] Phase 8: Documentation Updates
-- [ ] Upcoming: Multi-language support (i18n)
-- [ ] Upcoming: Direct calendar sync (Google Calendar / Apple Calendar API integration)
-
 ---
+
 *Built with ❤️ for Aucklanders and visitors.*
