@@ -52,6 +52,7 @@ export default function Home() {
       command,
       itinerary,
       otherEvents,
+      recommendedEvents,
       planner.setItinerary,
       planner.setOtherEvents,
       planner.setRecommendedEvents

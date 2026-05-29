@@ -1,5 +1,5 @@
 /**
- * Command Executor - Maps agent commands to UI actions
+ * Command Executor - Maps agent commands to UI actions with bulletproof fallback resolving
  */
 
 import type { AgentCommand, DayPlan, EventData } from "../types";
@@ -8,6 +8,7 @@ export function executeAgentCommand(
   command: AgentCommand,
   itinerary: DayPlan[] | null,
   otherEvents: EventData[],
+  recommendedEvents: EventData[],
   setItinerary: (itinerary: DayPlan[]) => void,
   setOtherEvents: (fn: (prev: EventData[]) => EventData[]) => void,
   setRecommendedEvents: (fn: (prev: EventData[]) => EventData[]) => void
@@ -18,20 +19,25 @@ export function executeAgentCommand(
 
   switch (command.type) {
     case "REMOVE":
-      handleRemoveCommand(command, newItinerary);
+      handleRemoveCommand(command, newItinerary, setOtherEvents, setRecommendedEvents);
       break;
     case "ADD":
-      handleAddCommand(command, newItinerary, otherEvents, setOtherEvents, setRecommendedEvents);
+      handleAddCommand(command, newItinerary, otherEvents, recommendedEvents, setOtherEvents, setRecommendedEvents);
       break;
     case "SWAP":
-      handleSwapCommand(command, newItinerary, otherEvents, setOtherEvents, setRecommendedEvents);
+      handleSwapCommand(command, newItinerary, otherEvents, recommendedEvents, setOtherEvents, setRecommendedEvents);
       break;
   }
 
   setItinerary(newItinerary);
 }
 
-function handleRemoveCommand(command: AgentCommand, itinerary: DayPlan[]): void {
+function handleRemoveCommand(
+  command: AgentCommand, 
+  itinerary: DayPlan[],
+  setOtherEvents?: (fn: (prev: EventData[]) => EventData[]) => void,
+  setRecommendedEvents?: (fn: (prev: EventData[]) => EventData[]) => void
+): void {
   const { dayIdx, slotIdx, actIdx } = command;
   if (dayIdx === undefined || slotIdx === undefined || actIdx === undefined) return;
 
@@ -44,6 +50,8 @@ function handleRemoveCommand(command: AgentCommand, itinerary: DayPlan[]): void 
   const activity = slot.activities[actIdx];
   if (!activity) return;
 
+  const removedEventId = activity.eventId;
+
   // Replace with empty placeholder
   slot.activities[actIdx] = {
     title: "Available Slot",
@@ -54,12 +62,30 @@ function handleRemoveCommand(command: AgentCommand, itinerary: DayPlan[]): void 
     eventId: null,
     isEmptyPlaceholder: true,
   };
+
+  // Move event back from recommendedEvents to otherEvents if helper triggers are defined
+  if (removedEventId && setOtherEvents && setRecommendedEvents) {
+    setRecommendedEvents((prev) => {
+      const eventToMove = prev.find((e) => String(e.id) === String(removedEventId));
+      if (eventToMove) {
+        setOtherEvents((prevOther) => {
+          // Prevent duplicates in explore pool
+          if (prevOther.some((e) => String(e.id) === String(removedEventId))) {
+            return prevOther;
+          }
+          return [...prevOther, eventToMove];
+        });
+      }
+      return prev.filter((e) => String(e.id) !== String(removedEventId));
+    });
+  }
 }
 
 function handleAddCommand(
   command: AgentCommand,
   itinerary: DayPlan[],
   otherEvents: EventData[],
+  recommendedEvents: EventData[],
   setOtherEvents: (fn: (prev: EventData[]) => EventData[]) => void,
   setRecommendedEvents: (fn: (prev: EventData[]) => EventData[]) => void
 ): void {
@@ -72,11 +98,54 @@ function handleAddCommand(
   const slot = day.timeSlots[slotIdx];
   if (!slot) return;
 
-  // Find the event
-  const event = otherEvents.find((e) => String(e.id) === String(eventId));
-  if (!event) return;
+  // 1. Search in otherEvents pool
+  let event: any = otherEvents.find((e) => String(e.id) === String(eventId));
+  let inOther = true;
 
-  // Add event to slot
+  if (!event) {
+    // 2. Search in recommendedEvents pool
+    event = recommendedEvents.find((e) => String(e.id) === String(eventId));
+    inOther = false;
+  }
+
+  // 3. Search in the original itinerary activities in case it was there but skipped pools
+  if (!event) {
+    for (const d of itinerary) {
+      for (const s of d.timeSlots) {
+        for (const a of s.activities) {
+          if (a.eventId && String(a.eventId) === String(eventId)) {
+            event = {
+              id: a.eventId,
+              name: a.title,
+              description: a.description || "",
+              location_summary: a.location || "",
+              is_free: a.cost?.toLowerCase().includes("free") || false,
+            };
+            inOther = false;
+            break;
+          }
+        }
+        if (event) break;
+      }
+      if (event) break;
+    }
+  }
+
+  // Fallback: If still not found (custom LLM activity ID or missing data), construct a solid default card
+  if (!event) {
+    console.warn(`[CommandExecutor] Event with ID ${eventId} not found. Creating fallback card.`);
+    slot.activities[actIdx] = {
+      title: "Planned Activity",
+      time: slot.activities[actIdx]?.time || "",
+      cost: "",
+      description: "Added by your conversational planning assistant.",
+      location: "Auckland",
+      eventId: eventId,
+    };
+    return;
+  }
+
+  // Add event details to slot
   slot.activities[actIdx] = {
     title: event.name,
     time: slot.activities[actIdx]?.time || "",
@@ -86,21 +155,27 @@ function handleAddCommand(
     eventId: event.id,
   };
 
-  // Move event from otherEvents to recommendedEvents
-  setOtherEvents((prev) => prev.filter((e) => String(e.id) !== String(eventId)));
-  setRecommendedEvents((prev) => [...prev, event]);
+  // If the event was from otherEvents, move it to recommendedEvents
+  if (inOther && event) {
+    setOtherEvents((prev) => prev.filter((e) => String(e.id) !== String(eventId)));
+    setRecommendedEvents((prev) => {
+      if (prev.some((e) => String(e.id) === String(eventId))) {
+        return prev;
+      }
+      return [...prev, event];
+    });
+  }
 }
 
 function handleSwapCommand(
   command: AgentCommand,
   itinerary: DayPlan[],
   otherEvents: EventData[],
+  recommendedEvents: EventData[],
   setOtherEvents: (fn: (prev: EventData[]) => EventData[]) => void,
   setRecommendedEvents: (fn: (prev: EventData[]) => EventData[]) => void
 ): void {
-  // Swap is essentially remove + add
-  handleRemoveCommand(command, itinerary);
-  handleAddCommand(command, itinerary, otherEvents, setOtherEvents, setRecommendedEvents);
+  // Swap is remove + add sequenced together
+  handleRemoveCommand(command, itinerary, setOtherEvents, setRecommendedEvents);
+  handleAddCommand(command, itinerary, otherEvents, recommendedEvents, setOtherEvents, setRecommendedEvents);
 }
-
-// Made with Bob

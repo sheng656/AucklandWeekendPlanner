@@ -911,3 +911,106 @@ body {
     max-width: calc(100% - 2rem);
   }
 }
+
+/* ===== Dark Mode Overrides for AI Chat Assistant ===== */
+@media (prefers-color-scheme: dark) {
+  .chat-panel {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -8px 48px rgba(0, 0, 0, 0.4);
+  }
+  
+  .chat-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
+  }
+  
+  .chat-header h3 {
+    color: #f8fafc !important;
+  }
+  
+  .chat-header p {
+    color: #94a3b8 !important;
+  }
+  
+  .chat-header button {
+    color: #94a3b8 !important;
+  }
+  
+  .chat-header button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8fafc !important;
+  }
+  
+  .chat-bubble-agent {
+    background: rgba(30, 41, 59, 0.85);
+    color: #f1f5f9;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .chat-bubble-meta {
+    color: #64748b;
+  }
+  
+  .chat-input-container {
+    background: rgba(15, 23, 42, 0.7);
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .chat-input {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+  }
+  
+  .chat-input::placeholder {
+    color: #64748b;
+  }
+  
+  .chat-input:focus {
+    border-color: rgba(59, 130, 246, 0.6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  }
+  
+  .command-notification {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+  
+  .command-notification-text {
+    color: #f8fafc;
+  }
+  
+  .chat-empty-state-chip {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #cbd5e1 !important;
+  }
+  
+  .chat-empty-state-chip:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #f8fafc !important;
+  }
+}
+
+/* Light mode suggested chip style */
+.chat-empty-state-chip {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: #4b5563;
+  padding: 0.5rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chat-empty-state-chip:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #2563eb;
+}
+

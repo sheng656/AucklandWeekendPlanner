@@ -95,7 +95,8 @@ export async function handleAgentRequest(
       selectedDates, 
       region, 
       audience, 
-      budget 
+      budget,
+      chatHistory
     } = body;
 
     if (!userMessage) {
@@ -108,14 +109,15 @@ export async function handleAgentRequest(
 
     console.log(`[Agent] User message: ${userMessage.substring(0, 100)}...`);
 
-    // Generate cache key
+    // Generate cache key (including chatHistory to avoid collision on multi-turn conversations)
     const cacheKey = generateCacheKey({
       userMessage,
       currentItinerary,
       selectedDates,
       region,
       audience,
-      budget
+      budget,
+      chatHistory
     });
 
     // Check cache
@@ -139,7 +141,7 @@ export async function handleAgentRequest(
 
     // Build context for LLM
     const systemInstruction = buildSystemInstruction(audience, budget, region);
-    const prompt = buildAgentPrompt(userMessage, currentItinerary, events, selectedDates);
+    const prompt = buildAgentPrompt(userMessage, currentItinerary, events, selectedDates, chatHistory);
 
     // Initialize LLM with fallback chain
     const geminiApiKey = await getGeminiApiKey();
@@ -299,13 +301,14 @@ GUIDELINES:
 }
 
 /**
- * Build the agent prompt with context
+ * Build the agent prompt with context and multi-turn chat history
  */
 function buildAgentPrompt(
   userMessage: string,
   currentItinerary: any,
   events: any[],
-  selectedDates: string[]
+  selectedDates: string[],
+  chatHistory?: Array<{ role: string; content: string }>
 ): string {
   const itineraryContext = currentItinerary 
     ? `\n\nCURRENT ITINERARY:\n${JSON.stringify(currentItinerary, null, 2)}`
@@ -321,7 +324,15 @@ function buildAgentPrompt(
     ? `\n\nSELECTED DATES: ${selectedDates.join(', ')}`
     : '';
 
-  return `${itineraryContext}${eventsContext}${datesContext}
+  let historyContext = '';
+  if (chatHistory && chatHistory.length > 0) {
+    historyContext = `\n\nCONVERSATION HISTORY:\n${chatHistory.map(m => {
+      const speaker = m.role === 'user' ? 'User' : 'Assistant';
+      return `${speaker}: ${m.content}`;
+    }).join('\n')}`;
+  }
+
+  return `${itineraryContext}${eventsContext}${datesContext}${historyContext}
 
 USER MESSAGE: ${userMessage}
 

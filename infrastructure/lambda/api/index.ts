@@ -2,6 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { handleAgentRequest } from './agentHandler';
 import { handlePlanRequest } from './planHandler';
+import { handleMetricsRequest } from './metricsHandler';
 
 // Adult content keywords for Family mode pre-filtering
 const ADULT_KEYWORDS = [
@@ -106,6 +107,11 @@ export const handler = async (event: any) => {
   // Route: /api/v2/agent - Conversational AI Assistant
   if (path === '/api/v2/agent') {
     return handleAgentRequest(event, docClient, tableName);
+  }
+
+  // Route: /api/v2/metrics - Hidden Public Analytics Dashboard
+  if (path === '/api/v2/metrics') {
+    return handleMetricsRequest(event, docClient, tableName);
   }
   
   // Route: /api/v2/plan - Weekend Planning (NEW: Using Gemini Fallback Chain)

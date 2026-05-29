@@ -190,6 +190,13 @@ export class InfrastructureStack extends cdk.Stack {
       integration: apiIntegration,
     });
 
+    // Route 3: Metrics endpoint (for admin dashboard logs query)
+    api.addRoutes({
+      path: '/api/v2/metrics',
+      methods: [apigatewayv2.HttpMethod.GET],
+      integration: apiIntegration,
+    });
+
     const cfnStage = api.defaultStage?.node.defaultChild as apigatewayv2.CfnStage;
     if (cfnStage) {
       cfnStage.defaultRouteSettings = {

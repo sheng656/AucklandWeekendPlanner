@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, X, Send, Sparkles, Check } from "lucide-react";
-import type { ChatMessage, AgentCommand, DayPlan, EventData } from "../../types";
+import { MessageCircle, X, Send, Sparkles, Check, Trash2 } from "lucide-react";
+import type { ChatMessage, AgentCommand, DayPlan } from "../../types";
 
 interface ChatAssistantProps {
   itinerary: DayPlan[] | null;
@@ -43,10 +43,12 @@ export default function ChatAssistant({
     }
   }, []);
 
-  // Save messages to localStorage when they change
+  // Save capped messages to localStorage when they change
   useEffect(() => {
     if (messages.length > 0) {
-      localStorage.setItem("chat_messages", JSON.stringify(messages));
+      // Cap at 50 messages to save space
+      const capped = messages.slice(-50);
+      localStorage.setItem("chat_messages", JSON.stringify(capped));
     }
   }, [messages]);
 
@@ -62,13 +64,37 @@ export default function ChatAssistant({
     }
   }, [isOpen]);
 
+  // Keyboard accessibility: Escape to close chat drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleClearChat = () => {
+    if (window.confirm("Are you sure you want to clear your chat history?")) {
+      setMessages([]);
+      localStorage.removeItem("chat_messages");
+    }
+  };
+
+  const handleChipClick = (suggestion: string) => {
+    setInputValue(suggestion);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
+    const userMessageText = inputValue.trim();
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: "user",
-      content: inputValue.trim(),
+      content: userMessageText,
       timestamp: Date.now()
     };
 
@@ -81,18 +107,32 @@ export default function ChatAssistant({
         ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')}/api/v2/agent`
         : "/api/v2/agent";
 
+      // Token-saving N-turn history transmission (last 5 rounds / 10 messages)
+      // Stripping heavy commands metadata to minimize payload and save LLM token usage
+      const historyToClean = messages.slice(-10);
+      const chatHistory = historyToClean.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userMessage: inputValue.trim(),
+          userMessage: userMessageText,
           currentItinerary: itinerary,
           selectedDates,
           region,
           audience,
-          budget
+          budget,
+          chatHistory // Send the cleaned conversation history
         })
       });
+
+      // Special Rate Limit UI Handling
+      if (response.status === 429) {
+        throw new Error("You have reached the daily limit of 40 requests. Please try again tomorrow!");
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -129,7 +169,7 @@ export default function ChatAssistant({
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "agent",
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+        content: error instanceof Error ? error.message : "Sorry, I encountered an error. Please try again.",
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -174,6 +214,7 @@ export default function ChatAssistant({
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 260, damping: 20 }}
+        aria-label="Toggle planner assistant chat"
       >
         <AnimatePresence mode="wait">
           {isOpen ? (
@@ -205,6 +246,8 @@ export default function ChatAssistant({
         {isOpen && (
           <motion.div
             className="chat-panel"
+            role="dialog"
+            aria-label="AI Planner Assistant"
             initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
@@ -213,29 +256,65 @@ export default function ChatAssistant({
             {/* Header */}
             <div className="chat-header">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
                   <Sparkles size={20} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">AI Assistant</h3>
-                  <p className="text-xs text-gray-500">Powered by Gemini 2.5</p>
+                  <h3 className="font-bold text-gray-900 dark:text-white">AI Assistant</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Itinerary Copilot</p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-black/5 flex items-center justify-center transition-colors"
-              >
-                <X size={20} className="text-gray-600" />
-              </button>
+              <div className="flex items-center gap-1">
+                {messages.length > 0 && (
+                  <button
+                    onClick={handleClearChat}
+                    className="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
+                    title="Clear conversation"
+                  >
+                    <Trash2 size={18} className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
+                  aria-label="Close assistant panel"
+                >
+                  <X size={20} className="text-gray-600 dark:text-gray-400" />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
             <div className="chat-messages">
               {messages.length === 0 && (
-                <div className="text-center text-gray-500 text-sm py-8">
+                <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-6">
                   <Sparkles size={32} className="mx-auto mb-3 text-blue-400" />
-                  <p className="font-semibold mb-1">Hi! I'm your AI planning assistant</p>
-                  <p className="text-xs">Ask me to add, remove, or modify activities in your itinerary!</p>
+                  <p className="font-semibold mb-1 text-gray-800 dark:text-white">Hi! I'm your interactive AI Copilot</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 px-4 mb-4">
+                    I can modify your itinerary in real-time. Try asking me to add, remove, or swap items!
+                  </p>
+                  
+                  {/* Empty state suggested action chips */}
+                  <div className="flex flex-wrap gap-2 justify-center px-4">
+                    <button
+                      onClick={() => handleChipClick("Add a morning outdoor activity")}
+                      className="chat-empty-state-chip"
+                    >
+                      🏞️ Add outdoor morning plan
+                    </button>
+                    <button
+                      onClick={() => handleChipClick("Suggest a popular lunch spot")}
+                      className="chat-empty-state-chip"
+                    >
+                      🍽️ Suggest a lunch spot
+                    </button>
+                    <button
+                      onClick={() => handleChipClick("Remove evening activities")}
+                      className="chat-empty-state-chip"
+                    >
+                      🗑️ Clear evening plans
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -247,15 +326,21 @@ export default function ChatAssistant({
                   <div className={`chat-avatar ${message.role === "user" ? "chat-avatar-user" : "chat-avatar-agent"}`}>
                     {message.role === "user" ? "👤" : "🤖"}
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className={`chat-bubble ${message.role === "user" ? "chat-bubble-user" : "chat-bubble-agent"}`}>
                       {message.content}
                     </div>
                     {message.role === "agent" && message.provider && (
                       <div className="chat-bubble-meta">
-                        <span>{message.model?.includes("flash-lite") ? "⚡ Flash Lite" : message.model?.includes("flash") ? "⚡ Flash" : "🧠 Claude"}</span>
+                        <span>
+                          {message.model?.includes("flash-lite")
+                            ? "⚡ Flash Lite"
+                            : message.model?.includes("flash")
+                            ? "⚡ Flash"
+                            : "🧠 Claude"}
+                        </span>
                         {message.commands && message.commands.length > 0 && (
-                          <span>• {message.commands.length} action{message.commands.length > 1 ? "s" : ""}</span>
+                          <span>• {message.commands.length} action{message.commands.length > 1 ? "s" : ""} applied</span>
                         )}
                       </div>
                     )}
@@ -296,6 +381,7 @@ export default function ChatAssistant({
                   className="chat-send-button"
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() || isLoading}
+                  aria-label="Send message"
                 >
                   <Send size={20} />
                 </button>
@@ -325,5 +411,3 @@ export default function ChatAssistant({
     </>
   );
 }
-
-// Made with Bob
