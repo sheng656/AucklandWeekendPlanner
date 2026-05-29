@@ -61,6 +61,8 @@ export default function Home() {
   };
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<{ dayIdx: number; slotIdx: number; actIdx: number; title: string } | null>(null);
 
   const handleResetClick = () => {
     if (itinerary || rawItinerary) {
@@ -73,6 +75,38 @@ export default function Home() {
   const handleConfirmReset = () => {
     planner.handleReset();
     setShowResetConfirm(false);
+  };
+
+  const handleGenerateClick = () => {
+    if (itinerary) {
+      setShowGenerateConfirm(true);
+    } else {
+      planner.handlePlanWeekend();
+    }
+  };
+
+  const handleConfirmGenerate = () => {
+    planner.handlePlanWeekend();
+    setShowGenerateConfirm(false);
+  };
+
+  const handleRemoveActivityClick = (dayIdx: number, slotIdx: number, actIdx: number) => {
+    const activity = itinerary?.[dayIdx]?.timeSlots?.[slotIdx]?.activities?.[actIdx];
+    if (activity) {
+      setPendingRemove({
+        dayIdx,
+        slotIdx,
+        actIdx,
+        title: activity.title
+      });
+    }
+  };
+
+  const handleConfirmRemove = () => {
+    if (pendingRemove) {
+      planner.handleRemoveActivity(pendingRemove.dayIdx, pendingRemove.slotIdx, pendingRemove.actIdx);
+      setPendingRemove(null);
+    }
   };
 
   const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
@@ -95,9 +129,6 @@ export default function Home() {
               <h1 className="text-base sm:text-xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent leading-tight tracking-tighter sm:tracking-normal">
                 Auckland Weekend Planner
               </h1>
-              <span className="hidden sm:inline-block text-[10px] font-bold bg-gradient-to-r from-blue-500 to-cyan-400 text-white px-2 py-0.5 rounded-md self-center">
-                BETA V2
-              </span>
             </div>
           </div>
           <WeatherWidget weather={weatherData} />
@@ -113,7 +144,7 @@ export default function Home() {
               availableDates={availableDates}
               region={region} toggleRegion={toggleRegion}
               weatherForecast={weatherForecast}
-              onGenerate={handlePlanWeekend}
+              onGenerate={handleGenerateClick}
             />
           ) : (
             <ResultsSection
@@ -128,11 +159,11 @@ export default function Home() {
               moreEventsRef={moreEventsRef}
               weatherForecast={weatherForecast}
               onSwapClick={handleSwapClick}
-              onRemoveClick={handleRemoveActivity}
+              onRemoveClick={handleRemoveActivityClick}
               onToggleMoreEvents={() => setMoreEventsOpen(!moreEventsOpen)}
               onSelectEvent={handleSelectEvent}
               onReset={handleResetClick}
-              onRetry={handlePlanWeekend}
+              onRetry={handleGenerateClick}
             />
           )}
         </AnimatePresence>
@@ -185,6 +216,30 @@ export default function Home() {
         variant="warning"
         onConfirm={handleConfirmReset}
         onCancel={() => setShowResetConfirm(false)}
+      />
+
+      {/* Confirm Regenerate Itinerary Modal */}
+      <ConfirmModal
+        isOpen={showGenerateConfirm}
+        title="Regenerate Itinerary"
+        message="You already have a customized weekend itinerary on your screen. Generating a new plan will replace all current plans. Do you want to proceed?"
+        confirmText="Regenerate"
+        cancelText="Keep Current"
+        variant="warning"
+        onConfirm={handleConfirmGenerate}
+        onCancel={() => setShowGenerateConfirm(false)}
+      />
+
+      {/* Confirm Remove Activity Modal */}
+      <ConfirmModal
+        isOpen={pendingRemove !== null}
+        title="Remove Activity"
+        message={`Are you sure you want to remove "${pendingRemove?.title}" from your itinerary? You can re-add it from the "Explore More" section below later.`}
+        confirmText="Remove"
+        cancelText="Keep Activity"
+        variant="danger"
+        onConfirm={handleConfirmRemove}
+        onCancel={() => setPendingRemove(null)}
       />
     </main>
   );

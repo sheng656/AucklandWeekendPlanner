@@ -591,32 +591,49 @@ body {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #3b82f6, #22d3ee);
   border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4), 0 0 0 0 rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.chat-button::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.45) 0%, rgba(34, 211, 238, 0.15) 60%, transparent 100%);
+  z-index: -1;
+  animation: pulse-aurora 2.5s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .chat-button:hover {
   transform: scale(1.1);
-  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.5), 0 0 0 8px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.5);
+}
+
+.chat-button:hover::before {
+  animation-duration: 1.2s;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.6) 0%, rgba(34, 211, 238, 0.25) 60%, transparent 100%);
 }
 
 .chat-button:active {
   transform: scale(0.95);
 }
 
-@keyframes pulse-glow {
+@keyframes pulse-aurora {
   0%, 100% {
-    box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4), 0 0 0 0 rgba(59, 130, 246, 0.4);
+    transform: scale(0.95);
+    opacity: 0.55;
   }
   50% {
-    box-shadow: 0 8px 32px rgba(59, 130, 246, 0.6), 0 0 0 12px rgba(59, 130, 246, 0.1);
+    transform: scale(1.25);
+    opacity: 0.95;
   }
 }
 

@@ -211,40 +211,25 @@ export default function ChatAssistant({
   return (
     <>
       {/* Floating Chat Button */}
-      <motion.button
-        className="chat-button"
-        onClick={() => setIsOpen(!isOpen)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.5, type: "spring", stiffness: 260, damping: 20 }}
-        aria-label="Toggle planner assistant chat"
-      >
-        <AnimatePresence mode="wait">
-          {isOpen ? (
-            <motion.div
-              key="close"
-              initial={{ rotate: -90, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              exit={{ rotate: 90, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <X size={28} strokeWidth={2.5} />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="open"
-              initial={{ rotate: 90, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              exit={{ rotate: -90, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <MessageCircle size={28} strokeWidth={2.5} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.button>
+      {!isOpen && (
+        <motion.button
+          className="chat-button"
+          onClick={() => setIsOpen(true)}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.5, type: "spring", stiffness: 260, damping: 20 }}
+          aria-label="Open planner assistant chat"
+        >
+          <div className="relative flex items-center justify-center">
+            <MessageCircle size={28} strokeWidth={2.5} />
+            <div className="absolute -top-1.5 -right-1.5 bg-yellow-400 dark:bg-yellow-500 text-slate-900 rounded-full p-0.5 border border-white dark:border-slate-950 shadow-sm flex items-center justify-center">
+              <Sparkles size={10} className="fill-slate-900" />
+            </div>
+          </div>
+        </motion.button>
+      )}
 
       {/* Chat Panel */}
       <AnimatePresence>
