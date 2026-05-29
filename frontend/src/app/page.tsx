@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ExternalLink, Compass } from "lucide-react";
 import WeatherWidget from "./components/WeatherWidget";
@@ -8,6 +8,7 @@ import PreferencePanel from "./components/PreferencePanel";
 import ResultsSection from "./components/ResultsSection";
 import ScrollToTop from "./components/ScrollToTop";
 import ChatAssistant from "./components/ChatAssistant";
+import ConfirmModal from "./components/ConfirmModal";
 import { SOURCE_SITES } from "../lib/sourceUtils";
 import { usePlanner } from "../lib/usePlanner";
 import { executeAgentCommand } from "../lib/commandExecutor";
@@ -57,6 +58,21 @@ export default function Home() {
       planner.setOtherEvents,
       planner.setRecommendedEvents
     );
+  };
+
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleResetClick = () => {
+    if (itinerary || rawItinerary) {
+      setShowResetConfirm(true);
+    } else {
+      planner.handleReset();
+    }
+  };
+
+  const handleConfirmReset = () => {
+    planner.handleReset();
+    setShowResetConfirm(false);
   };
 
   const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
@@ -115,7 +131,7 @@ export default function Home() {
               onRemoveClick={handleRemoveActivity}
               onToggleMoreEvents={() => setMoreEventsOpen(!moreEventsOpen)}
               onSelectEvent={handleSelectEvent}
-              onReset={handleReset}
+              onReset={handleResetClick}
               onRetry={handlePlanWeekend}
             />
           )}
@@ -158,6 +174,18 @@ export default function Home() {
         </div>
       </footer>
       <ScrollToTop />
+      
+      {/* Confirm Start Over Reset Modal */}
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        title="Start Over"
+        message="Are you sure you want to start over? Your current itinerary and any custom modifications will be lost."
+        confirmText="Start Over"
+        cancelText="Keep Itinerary"
+        variant="warning"
+        onConfirm={handleConfirmReset}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     </main>
   );
 }

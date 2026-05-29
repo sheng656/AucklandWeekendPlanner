@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Sparkles, Check, Trash2 } from "lucide-react";
 import type { ChatMessage, AgentCommand, DayPlan } from "../../types";
+import ConfirmModal from "./ConfirmModal";
 
 interface ChatAssistantProps {
   itinerary: DayPlan[] | null;
@@ -27,6 +28,7 @@ export default function ChatAssistant({
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -76,10 +78,13 @@ export default function ChatAssistant({
   }, []);
 
   const handleClearChat = () => {
-    if (window.confirm("Are you sure you want to clear your chat history?")) {
-      setMessages([]);
-      localStorage.removeItem("chat_messages");
-    }
+    setShowClearConfirm(true);
+  };
+
+  const handleConfirmClear = () => {
+    setMessages([]);
+    localStorage.removeItem("chat_messages");
+    setShowClearConfirm(false);
   };
 
   const handleChipClick = (suggestion: string) => {
@@ -408,6 +413,17 @@ export default function ChatAssistant({
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Confirm Clear Conversation Modal */}
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        title="Clear Conversation"
+        message="Are you sure you want to clear your entire chat history? This action is permanent and cannot be undone."
+        confirmText="Clear History"
+        cancelText="Keep Chat"
+        variant="danger"
+        onConfirm={handleConfirmClear}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </>
   );
 }

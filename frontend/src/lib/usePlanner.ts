@@ -156,11 +156,6 @@ export function usePlanner() {
   };
 
   const handleReset = () => {
-    if (itinerary || rawItinerary) {
-      if (!window.confirm("Are you sure you want to start over? Your current itinerary will be lost.")) {
-        return;
-      }
-    }
     setShowPreferences(true);
     setItinerary(null);
     setRawItinerary(null);
