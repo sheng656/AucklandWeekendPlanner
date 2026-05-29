@@ -7,8 +7,11 @@ import WeatherWidget from "./components/WeatherWidget";
 import PreferencePanel from "./components/PreferencePanel";
 import ResultsSection from "./components/ResultsSection";
 import ScrollToTop from "./components/ScrollToTop";
+import ChatAssistant from "./components/ChatAssistant";
 import { SOURCE_SITES } from "../lib/sourceUtils";
 import { usePlanner } from "../lib/usePlanner";
+import { executeAgentCommand } from "../lib/commandExecutor";
+import type { AgentCommand } from "../types";
 
 export default function Home() {
   const planner = usePlanner();
@@ -41,6 +44,18 @@ export default function Home() {
     setTimeout(() => {
       moreEventsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
+  };
+
+  // Handle agent commands
+  const handleExecuteCommand = (command: AgentCommand) => {
+    executeAgentCommand(
+      command,
+      itinerary,
+      otherEvents,
+      planner.setItinerary,
+      planner.setOtherEvents,
+      planner.setRecommendedEvents
+    );
   };
 
   const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
@@ -105,6 +120,18 @@ export default function Home() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ===== AI CHAT ASSISTANT ===== */}
+      {!showPreferences && itinerary && (
+        <ChatAssistant
+          itinerary={itinerary}
+          selectedDates={selectedDates.map(d => d.date)}
+          region={region}
+          audience={audience}
+          budget={budget}
+          onExecuteCommand={handleExecuteCommand}
+        />
+      )}
 
       {/* ===== ATTRIBUTION FOOTER ===== */}
       <footer className="source-attribution-footer py-4 md:py-8">

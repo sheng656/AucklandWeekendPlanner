@@ -31,3 +31,7 @@ Thumbs.db
 
 # Node
 node_modules/
+docs/SSM_SETUP.md
+docs/AGENT_IMPLEMENTATION.md
+docs/GEMINI_MIGRATION.md
+docs/TESTING_GUIDE.md

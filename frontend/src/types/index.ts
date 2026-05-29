@@ -77,3 +77,31 @@ export interface WeatherData {
   current: WeatherCurrent | null;
   forecast: WeatherForecast[];
 }
+
+// Agent Chat Types
+export interface AgentCommand {
+  type: 'REMOVE' | 'ADD' | 'SWAP';
+  dayIdx?: number;
+  slotIdx?: number;
+  actIdx?: number;
+  eventId?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'agent';
+  content: string;
+  timestamp: number;
+  commands?: AgentCommand[];
+  provider?: string;
+  model?: string;
+}
+
+export interface AgentResponse {
+  success: boolean;
+  message: string;
+  commands: AgentCommand[];
+  provider: string;
+  model: string;
+  fallbackCount: number;
+}
