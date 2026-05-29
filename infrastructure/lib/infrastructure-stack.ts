@@ -175,8 +175,17 @@ export class InfrastructureStack extends cdk.Stack {
     });
 
     const apiIntegration = new HttpLambdaIntegration('ApiIntegration', apiLambda);
+    
+    // Route 1: Planning endpoint (existing)
     api.addRoutes({
       path: '/api/v2/plan',
+      methods: [apigatewayv2.HttpMethod.POST],
+      integration: apiIntegration,
+    });
+
+    // Route 2: Agent endpoint (new - for conversational AI assistant)
+    api.addRoutes({
+      path: '/api/v2/agent',
       methods: [apigatewayv2.HttpMethod.POST],
       integration: apiIntegration,
     });

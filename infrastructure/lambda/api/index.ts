@@ -1,8 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, QueryCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
-import * as crypto from 'crypto';
-import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
-import { computeUpcomingWeekendRange } from '../shared/utils';
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { handleAgentRequest } from './agentHandler';
+import { handlePlanRequest } from './planHandler';
 
 // Adult content keywords for Family mode pre-filtering
 const ADULT_KEYWORDS = [
@@ -95,6 +94,36 @@ function validateItinerary(data: any): Itinerary {
 export const handler = async (event: any) => {
   console.log("Handler invoked with event:", JSON.stringify(event));
   
+  // Initialize DynamoDB client (shared across routes)
+  const ddbClient = new DynamoDBClient({});
+  const docClient = DynamoDBDocumentClient.from(ddbClient);
+  const tableName = process.env.TABLE_NAME!;
+  
+  // Route handling: Check the path to determine which handler to use
+  const path = event.rawPath || event.requestContext?.http?.path || '';
+  console.log(`Request path: ${path}`);
+  
+  // Route: /api/v2/agent - Conversational AI Assistant
+  if (path === '/api/v2/agent') {
+    return handleAgentRequest(event, docClient, tableName);
+  }
+  
+  // Route: /api/v2/plan - Weekend Planning (NEW: Using Gemini Fallback Chain)
+  // The old Bedrock-only implementation is preserved below as a backup
+  return handlePlanRequest(event, docClient, tableName);
+}
+
+// ============================================================================
+// BACKUP: Original Bedrock-only implementation (preserved for rollback)
+// ============================================================================
+/*
+export const handlerBackup = async (event: any) => {
+  console.log("Handler invoked with event:", JSON.stringify(event));
+  
+  const ddbClient = new DynamoDBClient({});
+  const docClient = DynamoDBDocumentClient.from(ddbClient);
+  const tableName = process.env.TABLE_NAME!;
+  
   try {
     // Parse request body
     const body = JSON.parse(event.body || '{}');
@@ -103,9 +132,6 @@ export const handler = async (event: any) => {
     console.log("Request params:", { audience, budget, selectedDates, tripDays, region });
     
     // 1. Fetch pre-warmed data from DynamoDB for the selected or upcoming weekend
-    const ddbClient = new DynamoDBClient({});
-    const docClient = DynamoDBDocumentClient.from(ddbClient);
-    
     let startDate: string;
     let endDate: string;
     
@@ -522,3 +548,4 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
     };
   }
 };
+*/
