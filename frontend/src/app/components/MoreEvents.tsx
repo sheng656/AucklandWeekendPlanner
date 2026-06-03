@@ -75,7 +75,15 @@ export default function MoreEvents({
   const totalPages = Math.ceil(displayList.length / itemsPerPage);
   const paginatedEvents = displayList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (events.length === 0) return null;
+  if (events.length === 0) {
+    return (
+      <div className="more-events-section">
+        <div className="px-4 py-6 text-center text-sm text-zinc-400">
+          No additional events found for your selected dates and region. Try selecting more dates or expanding your region.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="more-events-section">

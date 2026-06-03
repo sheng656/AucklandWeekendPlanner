@@ -194,6 +194,9 @@ export async function handlePlanRequest(
     let events = eventsData.Items || [];
     console.log(`Retrieved ${events.length} events from DynamoDB`);
 
+    // Keep full event list for frontend browsing (all regions)
+    let allEvents = [...events];
+
     // Region filtering
     const selectedRegions = Array.isArray(region) ? region : (region ? [region] : []);
     
@@ -241,12 +244,14 @@ export async function handlePlanRequest(
     };
     
     events = events.filter(dateFilter);
+    allEvents = allEvents.filter(dateFilter);
     const filteredContextEvents = contextEvents.filter(dateFilter);
 
     // Family mode filtering
     if (audience === 'Family') {
       const beforeCount = events.length;
       events = events.filter((e: any) => isAppropriateForFamily(e));
+      allEvents = allEvents.filter((e: any) => isAppropriateForFamily(e));
       const filtered = beforeCount - events.length;
       if (filtered > 0) {
         console.log(`Family mode: filtered out ${filtered} inappropriate events`);
@@ -455,25 +460,78 @@ Each day should have 4-6 activities across Morning, Lunch, Afternoon, and Evenin
     // Parse and validate the itinerary
     let itinerary: Itinerary;
     try {
-      const parsed = JSON.parse(llmResult.content);
+      let jsonStr = llmResult.content.trim();
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      }
+      const parsed = JSON.parse(jsonStr);
       itinerary = validateItinerary(parsed);
     } catch (parseError: any) {
       console.error('Failed to parse LLM response:', parseError);
-      throw new Error(`Invalid itinerary format: ${parseError.message}`);
+      // Gracefully fall back to displaying the raw generated text and allowing the user to browse
+      // all available events instead of failing with a 500 error when JSON parsing fails.
+      const addIdToEvent = (e: any) => ({
+        ...e,
+        id: e.SK ? e.SK.split('#')[2] : null
+      });
+      const fallbackResponse = JSON.stringify({
+        success: true,
+        itinerary: null,
+        rawItinerary: llmResult.content,
+        recommendedEvents: [],
+        otherEvents: allEvents.map(addIdToEvent),
+        provider: llmResult.provider,
+        model: llmResult.model,
+        fallbackCount: llmResult.fallbackCount
+      });
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: fallbackResponse
+      };
     }
 
-    // Build response with event details
-    // Add 'id' field to events for frontend matching
+    // Identify events selected by the LLM so we can display their rich details/images.
+    const mentionedIds = new Set<string>();
+    if (itinerary?.days) {
+      for (const day of itinerary.days) {
+        for (const slot of day.timeSlots || []) {
+          for (const activity of slot.activities || []) {
+            if (activity.eventId && activity.eventId !== 'null' && activity.eventId !== null) {
+              mentionedIds.add(String(activity.eventId));
+            }
+          }
+        }
+      }
+    }
+    // Scan raw output as a fallback in case the LLM wrote [ID: xxx] in text instead of the JSON field.
+    const idMatches = llmResult.content.matchAll(/\[ID:\s*(\d+)\]/g);
+    for (const match of idMatches) {
+      mentionedIds.add(match[1]);
+    }
+    console.log("Mentioned event IDs:", Array.from(mentionedIds));
+
+    // Map DynamoDB records to expected frontend event structure with numeric IDs
     const addIdToEvent = (e: any) => ({
       ...e,
       id: e.SK ? e.SK.split('#')[2] : null
     });
-    
+    const allFormattedEvents = allEvents.map(addIdToEvent);
+
+    // Group events into recommended (chosen by LLM) and other (alternative options)
+    // to populate the "Explore More Events" section correctly.
+    const recommendedEventsResult = allFormattedEvents.filter(
+      (e: any) => e.id && mentionedIds.has(String(e.id))
+    );
+    const otherEventsResult = allFormattedEvents.filter(
+      (e: any) => !e.id || !mentionedIds.has(String(e.id))
+    );
+
     const responseBody = JSON.stringify({
       success: true,
       itinerary,
-      recommendedEvents: events.slice(0, 20).map(addIdToEvent),
-      otherEvents: events.slice(20, 50).map(addIdToEvent),
+      recommendedEvents: recommendedEventsResult,
+      otherEvents: otherEventsResult,
       provider: llmResult.provider,
       model: llmResult.model,
       fallbackCount: llmResult.fallbackCount
