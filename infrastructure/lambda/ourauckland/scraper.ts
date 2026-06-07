@@ -191,9 +191,12 @@ function getByLabeledBlock($: cheerio.CheerioAPI, labels: string[]): string | un
     if (inline && !lowered.includes(inline.toLowerCase())) return inline;
   }
 
-  // Fallback: regex search in body text
+  // Fallback: regex search in body text. We clone the root and remove script/style tags
+  // to prevent matching Javascript/CSS code patterns (e.g. location:null) instead of event details.
   const regex = new RegExp(`(?:${lowered.join('|')})\\s*:\\s*([^\\n\\r]+)`, 'i');
-  const bodyText = cleanText($.root().text());
+  const cleanClone = $.root().clone();
+  cleanClone.find('script, style').remove();
+  const bodyText = cleanText(cleanClone.text());
   const match = bodyText.match(regex);
   if (match?.[1]) return cleanText(match[1]);
 

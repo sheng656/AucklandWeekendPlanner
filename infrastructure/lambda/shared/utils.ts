@@ -11,9 +11,24 @@ export function decodeHtmlEntities(text: string): string {
     .replace(/&#x12B;/g, 'i')
     .replace(/&#x14D;/g, 'o')
     .replace(/&#x16B;/g, 'u')
-    .replace(/&#x[0-9a-fA-F]+;/g, (match) => {
-       // Generic hex entities handling if needed, or just remove
-       return match; 
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+      try {
+        return String.fromCodePoint(parseInt(hex, 16));
+      } catch {
+        return `&#x${hex};`;
+      }
+    })
+    .replace(/&#(\d+);/g, (_, dec) => {
+      try {
+        return String.fromCodePoint(parseInt(dec, 10));
+      } catch {
+        return `&#${dec};`;
+      }
     });
 }
 

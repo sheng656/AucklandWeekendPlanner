@@ -193,4 +193,46 @@ describe('ourauckland scraper specific improvements', () => {
     const result = parseDetailEvent(html, 'http://test.com');
     expect(result.imageUrl).toBe('https://test.com/img1.jpg');
   });
+
+  test('parseDetailEvent decodes html entity macron characters in location name from LD+JSON', () => {
+    const html = `
+      <html>
+        <body>
+          <script type="application/ld+json">
+          {
+            "@type": "Event",
+            "name": "Mindful creative colouring",
+            "location": {
+              "@type": "Place",
+              "name": "&#x14C;rewa Library"
+            }
+          }
+          </script>
+        </body>
+      </html>
+    `;
+    const result = parseDetailEvent(html, 'http://test.com');
+    expect(result.locationText).toBe('Ōrewa Library');
+  });
+
+  test('parseDetailEvent ignores script tags when looking for locations', () => {
+    const html = `
+      <html>
+        <head>
+          <script>
+            // some script configuration
+            var config = {
+              location: "null;e[C]='https://'+dc.services.visualstudio.com"
+            };
+          </script>
+        </head>
+        <body>
+          <h1>Event Title</h1>
+          <p>Where: Takapuna Library</p>
+        </body>
+      </html>
+    `;
+    const result = parseDetailEvent(html, 'http://test.com');
+    expect(result.locationText).toBe('Takapuna Library');
+  });
 });
