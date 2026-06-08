@@ -31,6 +31,14 @@ export default function TimelinePanel({ plannerState }: TimelinePanelProps) {
   } = plannerState;
 
   const [showPrefs, setShowPrefs] = useState(false);
+
+  // Collapse preferences panel when itinerary is loaded or created
+  useEffect(() => {
+    if (itinerary) {
+      setShowPrefs(false);
+    }
+  }, [itinerary]);
+
   const [loadingStep, setLoadingStep] = useState(0);
 
   const loadingSteps = [

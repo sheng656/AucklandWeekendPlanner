@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Calendar, MapPin, DollarSign, Clock, Share2, Tag, ChevronDown, Check, Plus, ArrowRightLeft } from "lucide-react";
+import { Search, Calendar, MapPin, DollarSign, Clock, Share2, Tag, ChevronDown, Check, Plus, ArrowRightLeft, ExternalLink } from "lucide-react";
 import type { EventData, Region, SelectedDate, DayPlan } from "../../types";
 import { regionOptions } from "../../lib/constants";
+import { getSourceShortLabel, getSourceColor, getSourceHoverColor } from "../../lib/sourceUtils";
 
 interface EventsPanelProps {
   // useEvents hook outputs
@@ -39,10 +40,16 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
     handleManualAdd,
     recommendedEvents,
     selectedDates,
+    availableDates,
     region: preferenceRegions,
     activeAddEventSelector,
     setActiveAddEventSelector
   } = plannerState;
+
+  const allAvailableDates = [
+    ...(availableDates?.thisWeekend || []),
+    ...(availableDates?.nextWeekend || [])
+  ];
 
   // Auto-sync initial filters when preference changes
   useEffect(() => {
@@ -78,15 +85,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
   const timesList = ["Morning", "Afternoon", "Evening"];
   const costList: ("All" | "Free" | "Paid")[] = ["All", "Free", "Paid"];
 
-  // Helper to format source display names
-  const getSourceLabel = (src: string) => {
-    switch (src) {
-      case "eventfinda": return "Eventfinda";
-      case "ourauckland-surface": return "OurAuckland";
-      case "aucklandforkids": return "Auckland for Kids";
-      default: return src;
-    }
-  };
+
 
   const isEventInItinerary = (eventId: string) => {
     if (!itinerary) return false;
@@ -166,7 +165,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
             </button>
             {openDropdown === "date" && (
               <div className="absolute left-0 mt-1 w-52 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-white/10 rounded-xl shadow-xl p-2 space-y-1">
-                {selectedDates.map((d: SelectedDate) => (
+                {allAvailableDates.map((d: SelectedDate) => (
                   <label key={d.date} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
                     <input
                       type="checkbox"
@@ -177,8 +176,8 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
                     {d.dayName} ({d.label})
                   </label>
                 ))}
-                {selectedDates.length === 0 && (
-                  <div className="text-[10px] text-gray-400 p-2 text-center">No dates selected in preferences</div>
+                {allAvailableDates.length === 0 && (
+                  <div className="text-[10px] text-gray-400 p-2 text-center">No dates available</div>
                 )}
               </div>
             )}
@@ -328,7 +327,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
 
                     {/* Source pill */}
                     <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/40 backdrop-blur-md text-[9px] font-bold text-white uppercase tracking-wider">
-                      {getSourceLabel(event.source || "")}
+                      {getSourceShortLabel(event.source || "")}
                     </div>
 
                     {/* Free/Paid Badge */}
@@ -366,42 +365,62 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
                         {event.location_summary && (
                           <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400">
                             <MapPin size={11} className="text-red-500 flex-shrink-0" />
-                            <span className="truncate">{event.location_summary}</span>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                event.location_summary + ", Auckland, NZ"
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="truncate hover:text-blue-500 hover:underline transition-colors cursor-pointer"
+                              title="Search on Google Maps"
+                            >
+                              {event.location_summary}
+                            </a>
                           </div>
                         )}
                       </div>
                     </div>
 
                     {/* Footer / Add Action */}
-                    <div className="mt-3 pt-2 border-t border-gray-100 dark:border-white/5 flex gap-1">
+                    <div className="mt-3 pt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+                      {/* Left: Clickable source link */}
+                      {event.url ? (
+                        <a
+                          href={event.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`text-[10px] font-semibold flex items-center gap-1 transition-colors hover:underline ${getSourceColor(event.source)} ${getSourceHoverColor(event.source)}`}
+                          title={`View on ${getSourceShortLabel(event.source)}`}
+                        >
+                          <ExternalLink size={10} />
+                          {getSourceShortLabel(event.source)}
+                        </a>
+                      ) : (
+                        <span className="text-[10px] text-gray-400 font-semibold">
+                          {getSourceShortLabel(event.source)}
+                        </span>
+                      )}
+
+                      {/* Right: Add / Swap round button */}
                       {swappingSlot ? (
                         <button
                           onClick={() => handleSelectEvent(event)}
-                          className="flex-1 flex items-center justify-center gap-1 py-1.5 px-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold transition-all cursor-pointer shadow-sm shadow-blue-500/10"
+                          className="w-7 h-7 rounded-full flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white transition-all cursor-pointer shadow-sm hover:scale-105"
+                          title="Swap this event into the timeline"
                         >
-                          <ArrowRightLeft size={10} />
-                          Use This Event
+                          <ArrowRightLeft size={13} />
                         </button>
                       ) : (
                         <button
                           onClick={() => handleManualAdd(event)}
-                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-3 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer hover:scale-105 ${
                             inTimeline
-                              ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                              : "bg-gray-100 hover:bg-blue-500 hover:text-white dark:bg-white/5 dark:hover:bg-blue-600 text-gray-700 dark:text-gray-300"
+                              ? "bg-emerald-500 text-white shadow-sm"
+                              : "bg-gray-100 hover:bg-blue-500 hover:text-white dark:bg-white/10 dark:hover:bg-blue-600 text-gray-700 dark:text-gray-300"
                           }`}
+                          title={inTimeline ? "Already added to your timeline" : "Add this event to your timeline"}
                         >
-                          {inTimeline ? (
-                            <>
-                              <Check size={10} />
-                              Added to Timeline
-                            </>
-                          ) : (
-                            <>
-                              <Plus size={10} />
-                              Add to Timeline
-                            </>
-                          )}
+                          {inTimeline ? <Check size={13} /> : <Plus size={13} />}
                         </button>
                       )}
                     </div>

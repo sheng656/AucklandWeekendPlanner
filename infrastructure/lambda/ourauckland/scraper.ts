@@ -2,7 +2,7 @@ import * as cheerio from 'cheerio';
 import { WeekendRange, cleanText as sharedCleanText } from '../shared/utils';
 import { mapToMacroRegion as sharedMapToMacroRegion } from '../shared/regions';
 
-// Helper to ensure dates are clean YYYY-MM-DD HH:mm:ss
+// Helper to ensure dates are clean YYYY-MM-DD HH:mm:ss in Pacific/Auckland timezone
 function formatToCleanDateTime(isoString: string): string {
   try {
     // Decode any potential HTML entities that might have leaked into the ISO string
@@ -10,12 +10,34 @@ function formatToCleanDateTime(isoString: string): string {
     const date = new Date(decoded);
     if (isNaN(date.getTime())) return decoded;
     
-    const Y = date.getFullYear();
-    const M = String(date.getMonth() + 1).padStart(2, '0');
-    const D = String(date.getDate()).padStart(2, '0');
-    const h = String(date.getHours()).padStart(2, '0');
-    const m = String(date.getMinutes()).padStart(2, '0');
-    const s = String(date.getSeconds()).padStart(2, '0');
+    // Format using Pacific/Auckland timezone to prevent UTC server offset issues
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Pacific/Auckland',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const partMap: Record<string, string> = {};
+    for (const part of parts) {
+      partMap[part.type] = part.value;
+    }
+    
+    let hour = partMap.hour || '00';
+    if (hour === '24') hour = '00';
+    
+    const Y = partMap.year;
+    const M = partMap.month;
+    const D = partMap.day;
+    const h = hour;
+    const m = partMap.minute || '00';
+    const s = partMap.second || '00';
+    
     return `${Y}-${M}-${D} ${h}:${m}:${s}`;
   } catch {
     return isoString;

@@ -163,9 +163,8 @@ describe('ourauckland scraper specific improvements', () => {
       </html>
     `;
     const result = parseDetailEvent(html, 'http://test.com');
-    // Compare timestamps to make the test timezone-agnostic
-    expect(new Date(result.startAtIso || '').getTime()).toBe(new Date('2026-05-16T09:00:00Z').getTime());
-    expect(new Date(result.endAtIso || '').getTime()).toBe(new Date('2026-05-16T17:00:00Z').getTime());
+    expect(result.startAtIso).toBe('2026-05-16 21:00:00');
+    expect(result.endAtIso).toBe('2026-05-17 05:00:00');
   });
 
   test('mapToMacroRegion correctly identifies Blockhouse Bay', () => {
