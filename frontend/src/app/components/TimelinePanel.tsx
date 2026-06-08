@@ -100,7 +100,7 @@ export default function TimelinePanel({ plannerState }: TimelinePanelProps) {
       )}
 
       {/* Main Panel Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar min-h-0">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar min-h-0">
         {/* Loading State */}
         {isLoading && (
           <div className="flex flex-col gap-4">

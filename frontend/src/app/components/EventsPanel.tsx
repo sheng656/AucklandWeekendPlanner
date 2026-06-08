@@ -272,7 +272,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
       </div>
 
       {/* Main Events Grid Area */}
-      <div className="flex-1 overflow-y-auto p-4 min-h-0 no-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 min-h-0 custom-scrollbar">
         {isLoading ? (
           // Skeleton loader
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
