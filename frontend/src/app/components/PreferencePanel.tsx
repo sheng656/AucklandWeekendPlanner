@@ -55,7 +55,7 @@ export default function PreferencePanel({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-2 md:mb-6 preference-grid">
+      <div className="grid grid-cols-1 gap-3 mb-4 preference-grid">
         {/* Who */}
         <div className="bg-white/40 dark:bg-zinc-800/40 border border-white/60 dark:border-zinc-700/60 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-zinc-600 mb-2 md:mb-2.5">
