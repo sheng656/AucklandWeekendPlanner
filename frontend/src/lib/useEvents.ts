@@ -128,7 +128,7 @@ export function useEvents(): UseEventsReturn {
 
       // Date filter (empty means match all)
       if (filters.dates.length > 0 && e.datetime_start) {
-        const eventDateStr = e.datetime_start.split("T")[0];
+        const eventDateStr = e.datetime_start.slice(0, 10);
         if (!filters.dates.includes(eventDateStr)) {
           return false;
         }

@@ -227,7 +227,7 @@ export function usePlanner() {
   // Helper to parse event starting time and match day + slot
   const parseEventSlot = (event: EventData, currentItinerary: DayPlan[]) => {
     if (!event.datetime_start) return null;
-    const dateStr = event.datetime_start.split("T")[0];
+    const dateStr = event.datetime_start.slice(0, 10);
     const dayIdx = currentItinerary.findIndex((d) => d.date === dateStr);
     if (dayIdx === -1) return null;
 
