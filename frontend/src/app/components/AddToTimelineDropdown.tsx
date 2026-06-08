@@ -50,9 +50,22 @@ export default function AddToTimelineDropdown({
           <Calendar className="text-blue-500" size={16} />
           Add Event to Planner
         </h3>
-        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-4 line-clamp-1">
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1 line-clamp-1">
           {event.name}
         </p>
+        {event.datetime_start && (
+          <p className="text-[10px] text-amber-500 dark:text-amber-400 mb-4 leading-relaxed">
+            This event is on{" "}
+            <span className="font-semibold">
+              {new Date(event.datetime_start).toLocaleDateString("en-NZ", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+            {" "}— a day not yet in your plan. Select a slot from your existing days to place it there.
+          </p>
+        )}
 
         <div className="space-y-4 max-h-[300px] overflow-y-auto no-scrollbar">
           {itinerary.map((day, dayIdx) => (

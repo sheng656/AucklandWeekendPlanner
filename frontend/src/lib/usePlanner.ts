@@ -221,14 +221,38 @@ export function usePlanner() {
     setMoreEventsOpen(true);
   };
 
+  // Timezone-safe: build YYYY-MM-DD from local date fields (avoids slice(0,10) UTC bug)
+  const getLocalDateStr = (datetime: string): string => {
+    const d = new Date(datetime);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  // Returns a human-readable time string for the activity's time field.
+  // Uses the event's actual start time when available; falls back to the slot period
+  // (e.g. "Morning") for events that only have a date with no meaningful hour (00:00).
+  const getActivityTime = (event: EventData, slotPeriod: string): string => {
+    if (!event.datetime_start) return slotPeriod;
+    const d = new Date(event.datetime_start);
+    if (d.getHours() === 0 && d.getMinutes() === 0) return slotPeriod;
+    return d.toLocaleTimeString("en-NZ", { hour: "numeric", minute: "2-digit", hour12: true });
+  };
+
   // Helper to parse event starting time and match day + slot
   const parseEventSlot = (event: EventData, currentItinerary: DayPlan[]) => {
     if (!event.datetime_start) return null;
-    const dateStr = event.datetime_start.slice(0, 10);
+    // Use getLocalDateStr to avoid UTC vs local timezone mismatch from slice(0,10)
+    const dateStr = getLocalDateStr(event.datetime_start);
     const dayIdx = currentItinerary.findIndex((d) => d.date === dateStr);
     if (dayIdx === -1) return null;
 
+    // getHours() returns local time, so this is correct for slot bucketing
     const hour = new Date(event.datetime_start).getHours();
+    // Events at exactly midnight (00:00) have no meaningful time — don't auto-place
+    if (hour === 0 && new Date(event.datetime_start).getMinutes() === 0) return null;
+
     let slotIdx = -1;
     if (hour >= 5 && hour < 12) slotIdx = 0; // Morning
     else if (hour >= 12 && hour < 14) slotIdx = 1; // Lunch
@@ -321,7 +345,8 @@ export function usePlanner() {
 
     slot.activities[actIdx] = {
       title: event.name,
-      time: slot.activities[actIdx]?.time || slot.period,
+      // Use the event's actual start time rather than the old activity's time or slot period
+      time: getActivityTime(event, slot.period),
       cost: event.is_free ? "Free" : "Paid",
       description: event.description || "",
       location: event.location_summary || "",
@@ -362,7 +387,8 @@ export function usePlanner() {
 
     slot.activities.push({
       title: event.name,
-      time: slot.period,
+      // Use the event's actual start time rather than the generic slot period
+      time: getActivityTime(event, slot.period),
       cost: event.is_free ? "Free" : "Paid",
       description: event.description || "",
       location: event.location_summary || "",
