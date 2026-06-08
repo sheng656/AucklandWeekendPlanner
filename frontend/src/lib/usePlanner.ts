@@ -16,7 +16,6 @@ export function usePlanner() {
   
   const [region, setRegion] = useState<Region[]>(["Central Auckland"]);
 
-  const [showPreferences, setShowPreferences] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
   const [itinerary, setItinerary] = useState<DayPlan[] | null>(null);
@@ -29,6 +28,19 @@ export function usePlanner() {
     dayIdx: number;
     slotIdx: number;
     actIdx: number;
+  } | null>(null);
+
+  // Selector state for manually adding events
+  const [activeAddEventSelector, setActiveAddEventSelector] = useState<EventData | null>(null);
+
+  // Conflict state for overriding slots
+  const [pendingConflict, setPendingConflict] = useState<{
+    event: EventData;
+    dayIdx: number;
+    slotIdx: number;
+    actIdx: number;
+    existingTitle: string;
+    isSwap?: boolean;
   } | null>(null);
 
   // Weather data for preference hints
@@ -56,7 +68,6 @@ export function usePlanner() {
           setRecommendedEvents(parsed.recommendedEvents || []);
           setOtherEvents(parsed.otherEvents || []);
           if (parsed.rawItinerary) setRawItinerary(parsed.rawItinerary);
-          setShowPreferences(false);
         }
       } catch (e) {
         console.error("Failed to parse saved itinerary", e);
@@ -102,7 +113,6 @@ export function usePlanner() {
   const handlePlanWeekend = async () => {
     trackGenerateItinerary(region.join(", "));
     setIsLoading(true);
-    setShowPreferences(false);
     setItinerary(null);
     setRawItinerary(null);
     setRecommendedEvents([]);
@@ -124,7 +134,7 @@ export function usePlanner() {
           audience,
           budget,
           selectedDates: selectedDates.map((d) => d.date),
-          tripDays: selectedDates.map((d) => d.dayName).join(" & "), // legacy compat
+          tripDays: selectedDates.map((d) => d.dayName).join(" & "),
           region,
           query: `Plan a weekend itinerary for ${selectedDates.map(d => `${d.dayName} (${d.label})`).join(", ")} in ${region.join(", ")} for ${audience} with ${budget} budget.`,
         }),
@@ -156,13 +166,14 @@ export function usePlanner() {
   };
 
   const handleReset = () => {
-    setShowPreferences(true);
     setItinerary(null);
     setRawItinerary(null);
     setRecommendedEvents([]);
     setOtherEvents([]);
     setSwappingSlot(null);
     setMoreEventsOpen(false);
+    setActiveAddEventSelector(null);
+    setPendingConflict(null);
   };
 
   const handleRemoveActivity = (dayIdx: number, slotIdx: number, actIdx: number) => {
@@ -171,17 +182,23 @@ export function usePlanner() {
     const slot = newPlan[dayIdx]?.timeSlots[slotIdx];
     if (!slot) return;
     
-    const removedEventId = slot.activities[actIdx].eventId;
+    const removedEventId = slot.activities[actIdx]?.eventId;
     
-    slot.activities[actIdx] = {
-      title: "Available Slot",
-      time: slot.activities[actIdx].time,
-      cost: "",
-      description: "Click here to add an event from the Explore More section.",
-      location: "",
-      eventId: null,
-      isEmptyPlaceholder: true,
-    };
+    if (slot.activities.length > 1) {
+      // Remove specific activity if there are multiple
+      slot.activities.splice(actIdx, 1);
+    } else {
+      // Replace with placeholder if it's the last one
+      slot.activities[actIdx] = {
+        title: "Available Slot",
+        time: slot.activities[actIdx]?.time || slot.period,
+        cost: "",
+        description: "Click here to add an event.",
+        location: "",
+        eventId: null,
+        isEmptyPlaceholder: true,
+      };
+    }
 
     if (removedEventId) {
       const eventToMove = recommendedEvents.find((e) => String(e.id) === String(removedEventId));
@@ -207,28 +224,254 @@ export function usePlanner() {
     setMoreEventsOpen(true);
   };
 
+  // Helper to parse event starting time and match day + slot
+  const parseEventSlot = (event: EventData, currentItinerary: DayPlan[]) => {
+    if (!event.datetime_start) return null;
+    const dateStr = event.datetime_start.split("T")[0];
+    const dayIdx = currentItinerary.findIndex((d) => d.date === dateStr);
+    if (dayIdx === -1) return null;
+
+    const hour = new Date(event.datetime_start).getHours();
+    let slotIdx = -1;
+    if (hour >= 5 && hour < 12) slotIdx = 0; // Morning
+    else if (hour >= 12 && hour < 14) slotIdx = 1; // Lunch
+    else if (hour >= 14 && hour < 18) slotIdx = 2; // Afternoon
+    else slotIdx = 3; // Evening
+
+    return { dayIdx, slotIdx };
+  };
+
+  // Ensure itinerary exists, create manual empty one if not
+  const ensureItinerary = (): DayPlan[] => {
+    if (itinerary) return itinerary;
+    const empty = createEmptyTimeline(selectedDates);
+    return empty;
+  };
+
+  const createEmptyTimeline = (dates: SelectedDate[]): DayPlan[] => {
+    const emptyItinerary: DayPlan[] = dates.map((d) => ({
+      dayName: d.dayName,
+      date: d.date,
+      estimatedTotal: "$0",
+      timeSlots: [
+        {
+          period: "Morning",
+          activities: [{
+            title: "Available Slot",
+            time: "Morning",
+            cost: "",
+            description: "Click here to add an event.",
+            location: "",
+            eventId: null,
+            isEmptyPlaceholder: true,
+          }]
+        },
+        {
+          period: "Lunch",
+          activities: [{
+            title: "Available Slot",
+            time: "Lunch",
+            cost: "",
+            description: "Click here to add an event.",
+            location: "",
+            eventId: null,
+            isEmptyPlaceholder: true,
+          }]
+        },
+        {
+          period: "Afternoon",
+          activities: [{
+            title: "Available Slot",
+            time: "Afternoon",
+            cost: "",
+            description: "Click here to add an event.",
+            location: "",
+            eventId: null,
+            isEmptyPlaceholder: true,
+          }]
+        },
+        {
+          period: "Evening",
+          activities: [{
+            title: "Available Slot",
+            time: "Evening",
+            cost: "",
+            description: "Click here to add an event.",
+            location: "",
+            eventId: null,
+            isEmptyPlaceholder: true,
+          }]
+        }
+      ]
+    }));
+    setItinerary(emptyItinerary);
+    setRawItinerary("Custom Manual Itinerary");
+    setRecommendedEvents([]);
+    setOtherEvents([]);
+    return emptyItinerary;
+  };
+
+  const executeReplace = (
+    event: EventData,
+    dayIdx: number,
+    slotIdx: number,
+    actIdx: number,
+    currentItinerary: DayPlan[]
+  ) => {
+    const newItinerary = [...currentItinerary];
+    const slot = newItinerary[dayIdx].timeSlots[slotIdx];
+    const oldEventId = slot.activities[actIdx]?.eventId;
+
+    slot.activities[actIdx] = {
+      title: event.name,
+      time: slot.activities[actIdx]?.time || slot.period,
+      cost: event.is_free ? "Free" : "Paid",
+      description: event.description || "",
+      location: event.location_summary || "",
+      eventId: event.id,
+    };
+
+    setOtherEvents((prev) => prev.filter((e) => e.id !== event.id));
+    setRecommendedEvents((prev) => {
+      const filtered = prev.filter((e) => e.id !== event.id);
+      return [...filtered, event];
+    });
+
+    if (oldEventId) {
+      const returnedEvent = recommendedEvents.find((e) => e.id === oldEventId);
+      if (returnedEvent) {
+        setRecommendedEvents((prev) => prev.filter((e) => e.id !== oldEventId));
+        setOtherEvents((prev) => [...prev, returnedEvent]);
+      }
+    }
+
+    setItinerary(newItinerary);
+    setActiveAddEventSelector(null);
+  };
+
+  const executeKeepBoth = (
+    event: EventData,
+    dayIdx: number,
+    slotIdx: number,
+    currentItinerary: DayPlan[]
+  ) => {
+    const newItinerary = [...currentItinerary];
+    const slot = newItinerary[dayIdx].timeSlots[slotIdx];
+
+    const hasPlaceholder = slot.activities.length === 1 && slot.activities[0].isEmptyPlaceholder;
+    if (hasPlaceholder) {
+      slot.activities = [];
+    }
+
+    slot.activities.push({
+      title: event.name,
+      time: slot.period,
+      cost: event.is_free ? "Free" : "Paid",
+      description: event.description || "",
+      location: event.location_summary || "",
+      eventId: event.id,
+    });
+
+    setOtherEvents((prev) => prev.filter((e) => e.id !== event.id));
+    setRecommendedEvents((prev) => {
+      const filtered = prev.filter((e) => e.id !== event.id);
+      return [...filtered, event];
+    });
+
+    setItinerary(newItinerary);
+    setActiveAddEventSelector(null);
+  };
+
+  const handleManualAdd = (event: EventData, dayIdx?: number, slotIdx?: number, actIdx?: number) => {
+    const currentItinerary = ensureItinerary();
+    
+    let targetDayIdx = dayIdx;
+    let targetSlotIdx = slotIdx;
+    let targetActIdx = actIdx ?? 0;
+
+    if (targetDayIdx === undefined || targetSlotIdx === undefined) {
+      const autoSlot = parseEventSlot(event, currentItinerary);
+      if (autoSlot) {
+        targetDayIdx = autoSlot.dayIdx;
+        targetSlotIdx = autoSlot.slotIdx;
+      } else {
+        // Popover select dropdown
+        setActiveAddEventSelector(event);
+        return;
+      }
+    }
+
+    const slot = currentItinerary[targetDayIdx]?.timeSlots[targetSlotIdx];
+    if (!slot) return;
+
+    const existingActivities = slot.activities;
+    const isTargetEmpty = existingActivities.length === 1 && existingActivities[0].isEmptyPlaceholder;
+
+    if (!isTargetEmpty) {
+      setPendingConflict({
+        event,
+        dayIdx: targetDayIdx,
+        slotIdx: targetSlotIdx,
+        actIdx: targetActIdx,
+        existingTitle: existingActivities[targetActIdx]?.title || existingActivities[0]?.title || "Existing Activity",
+        isSwap: false
+      });
+    } else {
+      executeReplace(event, targetDayIdx, targetSlotIdx, targetActIdx, currentItinerary);
+    }
+  };
+
+  const confirmReplace = () => {
+    if (!pendingConflict || !itinerary) return;
+    const { event, dayIdx, slotIdx, actIdx } = pendingConflict;
+    executeReplace(event, dayIdx, slotIdx, actIdx, itinerary);
+    setPendingConflict(null);
+    if (pendingConflict.isSwap) {
+      setSwappingSlot(null);
+    }
+  };
+
+  const confirmKeepBoth = () => {
+    if (!pendingConflict || !itinerary) return;
+    const { event, dayIdx, slotIdx } = pendingConflict;
+    executeKeepBoth(event, dayIdx, slotIdx, itinerary);
+    setPendingConflict(null);
+    if (pendingConflict.isSwap) {
+      setSwappingSlot(null);
+    }
+  };
+
+  const cancelConflict = () => {
+    setPendingConflict(null);
+    if (pendingConflict?.isSwap) {
+      setSwappingSlot(null);
+    }
+  };
+
   const handleSelectEvent = useCallback(
     (event: EventData) => {
       if (!swappingSlot || !itinerary) return;
 
       const { dayIdx, slotIdx, actIdx } = swappingSlot;
-      const newPlan = [...itinerary];
-      const slot = newPlan[dayIdx]?.timeSlots[slotIdx];
+      const slot = itinerary[dayIdx]?.timeSlots[slotIdx];
       if (!slot) return;
 
-      slot.activities[actIdx] = {
-        title: event.name,
-        time: slot.activities[actIdx].time,
-        cost: event.is_free ? "Free" : slot.activities[actIdx].cost,
-        description: event.description || "",
-        location: event.location_summary || "",
-        eventId: event.id,
-      };
+      const existingActivity = slot.activities[actIdx];
+      const isTargetEmpty = existingActivity?.isEmptyPlaceholder;
 
-      setOtherEvents((prev) => prev.filter((e) => e.id !== event.id));
-      setRecommendedEvents((prev) => [...prev, event]);
-      setItinerary(newPlan);
-      setSwappingSlot(null);
+      if (!isTargetEmpty) {
+        setPendingConflict({
+          event,
+          dayIdx,
+          slotIdx,
+          actIdx,
+          existingTitle: existingActivity?.title || "Existing Activity",
+          isSwap: true
+        });
+      } else {
+        executeReplace(event, dayIdx, slotIdx, actIdx, itinerary);
+        setSwappingSlot(null);
+      }
     },
     [swappingSlot, itinerary]
   );
@@ -238,7 +481,6 @@ export function usePlanner() {
     budget, setBudget,
     selectedDates, toggleDate, availableDates,
     region, toggleRegion,
-    showPreferences, setShowPreferences,
     isLoading,
     itinerary, setItinerary,
     rawItinerary,
@@ -246,12 +488,19 @@ export function usePlanner() {
     otherEvents, setOtherEvents,
     moreEventsOpen, setMoreEventsOpen,
     swappingSlot, setSwappingSlot,
+    activeAddEventSelector, setActiveAddEventSelector,
+    pendingConflict, setPendingConflict,
     weatherForecast,
     weatherData,
     handlePlanWeekend,
     handleReset,
     handleRemoveActivity,
     handleSwapClick,
-    handleSelectEvent
+    handleSelectEvent,
+    handleManualAdd,
+    confirmReplace,
+    confirmKeepBoth,
+    cancelConflict,
+    createEmptyTimeline
   };
 }

@@ -61,11 +61,11 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
       layout
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      className={`relative timeline-card flex flex-col sm:flex-row overflow-hidden group ${isSwapping ? "timeline-card-swapping" : ""}`}
+      className={`relative timeline-card flex flex-col overflow-hidden group ${isSwapping ? "timeline-card-swapping" : ""}`}
     >
       {/* Cover Image Layer */}
       {imageUrl && (
-        <div className="h-32 sm:h-auto w-full sm:w-36 shrink-0 relative overflow-hidden bg-zinc-100">
+        <div className="h-28 w-full shrink-0 relative overflow-hidden bg-zinc-100">
           <img 
             src={imageUrl}
             alt=""
@@ -83,7 +83,7 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
       )}
 
       {/* Content Layer */}
-      <div className="p-3 sm:p-4 flex flex-col gap-1.5 relative z-10 bg-white/90 flex-1">
+      <div className="p-3 flex flex-col gap-1.5 relative z-10 bg-white/90 flex-1">
         <div className="flex items-start justify-between gap-2">
           <h4 className="font-bold text-zinc-800 text-sm leading-snug flex-1">
             {activity.title}

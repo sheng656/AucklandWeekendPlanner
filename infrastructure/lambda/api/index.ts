@@ -3,6 +3,7 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { handleAgentRequest } from './agentHandler';
 import { handlePlanRequest } from './planHandler';
 import { handleMetricsRequest } from './metricsHandler';
+import { handleEventsRequest } from './eventsHandler';
 
 // Adult content keywords for Family mode pre-filtering
 const ADULT_KEYWORDS = [
@@ -104,6 +105,11 @@ export const handler = async (event: any) => {
   const path = event.rawPath || event.requestContext?.http?.path || '';
   console.log(`Request path: ${path}`);
   
+  // Route: GET /api/v2/events - Lightweight event list for the homepage browser (no LLM, no rate limit)
+  if (path === '/api/v2/events') {
+    return handleEventsRequest(event, docClient, tableName);
+  }
+
   // Route: /api/v2/agent - Conversational AI Assistant
   if (path === '/api/v2/agent') {
     return handleAgentRequest(event, docClient, tableName);

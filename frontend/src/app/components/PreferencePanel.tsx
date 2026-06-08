@@ -18,6 +18,7 @@ interface PreferencePanelProps {
   toggleRegion: (v: Region) => void;
   weatherForecast: WeatherForecast[];
   onGenerate: () => void;
+  onBuildManually?: () => void;
 }
 
 export default function PreferencePanel({
@@ -27,7 +28,8 @@ export default function PreferencePanel({
   availableDates,
   region, toggleRegion,
   weatherForecast,
-  onGenerate
+  onGenerate,
+  onBuildManually
 }: PreferencePanelProps) {
   const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
 
@@ -186,6 +188,15 @@ export default function PreferencePanel({
           <Sparkles className="w-4 h-4 md:w-5 md:h-5" /> Generate Itinerary
         </span>
       </motion.button>
+
+      {onBuildManually && (
+        <button
+          onClick={onBuildManually}
+          className="mt-3 w-full text-center text-xs font-semibold text-blue-500 hover:text-blue-600 hover:underline transition-all cursor-pointer"
+        >
+          Or build your own itinerary manually →
+        </button>
+      )}
     </motion.section>
   );
 }

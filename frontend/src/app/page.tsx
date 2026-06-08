@@ -1,51 +1,38 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ExternalLink, Compass } from "lucide-react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Compass, Calendar, CheckSquare, MessageCircle, ExternalLink } from "lucide-react";
 import WeatherWidget from "./components/WeatherWidget";
-import PreferencePanel from "./components/PreferencePanel";
-import ResultsSection from "./components/ResultsSection";
-import ScrollToTop from "./components/ScrollToTop";
+import TimelinePanel from "./components/TimelinePanel";
+import EventsPanel from "./components/EventsPanel";
 import ChatAssistant from "./components/ChatAssistant";
-import ConfirmModal from "./components/ConfirmModal";
+import AddToTimelineDropdown from "./components/AddToTimelineDropdown";
+import ConflictConfirmModal from "./components/ConflictConfirmModal";
+import ScrollToTop from "./components/ScrollToTop";
 import { SOURCE_SITES } from "../lib/sourceUtils";
 import { usePlanner } from "../lib/usePlanner";
+import { useEvents } from "../lib/useEvents";
 import { executeAgentCommand } from "../lib/commandExecutor";
 import type { AgentCommand } from "../types";
 
 export default function Home() {
   const planner = usePlanner();
   const {
-    audience, setAudience,
-    budget, setBudget,
-    selectedDates, toggleDate, availableDates,
-    region, toggleRegion,
-    showPreferences,
-    isLoading,
+    audience,
+    budget,
+    selectedDates,
+    region,
     itinerary,
-    rawItinerary,
     recommendedEvents,
     otherEvents,
-    moreEventsOpen, setMoreEventsOpen,
-    swappingSlot,
-    weatherForecast,
-    weatherData,
-    handlePlanWeekend,
-    handleReset,
-    handleRemoveActivity,
-    handleSelectEvent
+    activeAddEventSelector,
+    setActiveAddEventSelector,
+    pendingConflict,
   } = planner;
 
-  const moreEventsRef = useRef<HTMLDivElement>(null);
-
-  const handleSwapClick = (dayIdx: number, slotIdx: number, actIdx: number) => {
-    planner.handleSwapClick(dayIdx, slotIdx, actIdx);
-    // Smooth scroll to event selection
-    setTimeout(() => {
-      moreEventsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
-  };
+  const events = useEvents();
+  const [activeTab, setActiveTab] = useState<"events" | "planner" | "chat">("events");
 
   // Handle agent commands
   const handleExecuteCommand = (command: AgentCommand) => {
@@ -60,130 +47,144 @@ export default function Home() {
     );
   };
 
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
-  const [pendingRemove, setPendingRemove] = useState<{ dayIdx: number; slotIdx: number; actIdx: number; title: string } | null>(null);
-
-  const handleResetClick = () => {
-    if (itinerary || rawItinerary) {
-      setShowResetConfirm(true);
-    } else {
-      planner.handleReset();
-    }
-  };
-
-  const handleConfirmReset = () => {
-    planner.handleReset();
-    setShowResetConfirm(false);
-  };
-
-  const handleGenerateClick = () => {
-    if (itinerary) {
-      setShowGenerateConfirm(true);
-    } else {
-      planner.handlePlanWeekend();
-    }
-  };
-
-  const handleConfirmGenerate = () => {
-    planner.handlePlanWeekend();
-    setShowGenerateConfirm(false);
-  };
-
-  const handleRemoveActivityClick = (dayIdx: number, slotIdx: number, actIdx: number) => {
-    const activity = itinerary?.[dayIdx]?.timeSlots?.[slotIdx]?.activities?.[actIdx];
-    if (activity) {
-      setPendingRemove({
-        dayIdx,
-        slotIdx,
-        actIdx,
-        title: activity.title
-      });
-    }
-  };
-
-  const handleConfirmRemove = () => {
-    if (pendingRemove) {
-      planner.handleRemoveActivity(pendingRemove.dayIdx, pendingRemove.slotIdx, pendingRemove.actIdx);
-      setPendingRemove(null);
-    }
-  };
-
-  const spring = { type: "spring" as const, stiffness: 300, damping: 20 };
-
   return (
-    <main className="min-h-screen mesh-bg p-3 md:p-8 font-sans flex flex-col">
-      <div className="max-w-3xl mx-auto w-full flex flex-col gap-3 md:gap-5 flex-1">
-        {/* ===== HEADER ===== */}
-        <motion.header
-          initial={{ y: -40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={spring}
-          className="flex justify-between items-center glass-panel p-3 md:p-5 shrink-0"
-        >
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
-            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-md shrink-0">
-              <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2">
-              <h1 className="text-base sm:text-xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent leading-tight tracking-tighter sm:tracking-normal">
-                Auckland Weekend Planner
-              </h1>
-            </div>
+    <main className="min-h-screen mesh-bg font-sans flex flex-col pb-16 lg:pb-0">
+      {/* ===== HEADER ===== */}
+      <motion.header
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="flex justify-between items-center glass-panel m-3 md:mx-6 p-3 md:p-4 shrink-0 sticky top-3 z-30"
+      >
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-md shrink-0">
+            <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
-          <WeatherWidget weather={weatherData} />
-        </motion.header>
- 
-        {/* ===== CONTENT ===== */}
-        <AnimatePresence mode="wait">
-          {showPreferences ? (
-            <PreferencePanel
-              audience={audience} setAudience={setAudience}
-              budget={budget} setBudget={setBudget}
-              selectedDates={selectedDates} toggleDate={toggleDate}
-              availableDates={availableDates}
-              region={region} toggleRegion={toggleRegion}
-              weatherForecast={weatherForecast}
-              onGenerate={handleGenerateClick}
-            />
-          ) : (
-            <ResultsSection
-              isLoading={isLoading}
-              itinerary={itinerary}
-              rawItinerary={rawItinerary}
-              recommendedEvents={recommendedEvents}
-              otherEvents={otherEvents}
-              region={region}
-              swappingSlot={swappingSlot}
-              moreEventsOpen={moreEventsOpen}
-              moreEventsRef={moreEventsRef}
-              weatherForecast={weatherForecast}
-              onSwapClick={handleSwapClick}
-              onRemoveClick={handleRemoveActivityClick}
-              onToggleMoreEvents={() => setMoreEventsOpen(!moreEventsOpen)}
-              onSelectEvent={handleSelectEvent}
-              onReset={handleResetClick}
-              onRetry={handleGenerateClick}
-            />
-          )}
-        </AnimatePresence>
+          <h1 className="text-base sm:text-xl md:text-2xl font-extrabold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent leading-tight tracking-tighter">
+            Auckland Weekend Planner
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <WeatherWidget weather={planner.weatherData} />
+        </div>
+      </motion.header>
+
+      {/* ===== DESKTOP LAYOUT (3 columns) ===== */}
+      <div className="hidden lg:grid grid-cols-[400px_1fr_350px] gap-6 px-6 pb-6 flex-1 min-h-0">
+        {/* Left Column: Itinerary / Config */}
+        <div className="h-[calc(100vh-100px)] sticky top-[92px]">
+          <TimelinePanel plannerState={planner} />
+        </div>
+
+        {/* Center Column: unified event cards grid */}
+        <div className="h-[calc(100vh-100px)]">
+          <EventsPanel eventsState={events} plannerState={planner} />
+        </div>
+
+        {/* Right Column: AI assistant chat */}
+        <div className="h-[calc(100vh-100px)] sticky top-[92px]">
+          <ChatAssistant
+            itinerary={itinerary}
+            selectedDates={selectedDates.map((d) => d.date)}
+            region={region}
+            audience={audience}
+            budget={budget}
+            onExecuteCommand={handleExecuteCommand}
+            embedded
+          />
+        </div>
       </div>
 
-      {/* ===== AI CHAT ASSISTANT ===== */}
-      {!showPreferences && itinerary && (
-        <ChatAssistant
-          itinerary={itinerary}
-          selectedDates={selectedDates.map(d => d.date)}
-          region={region}
-          audience={audience}
-          budget={budget}
-          onExecuteCommand={handleExecuteCommand}
+      {/* ===== MOBILE LAYOUT (Tab panels) ===== */}
+      <div className="lg:hidden flex-1 flex flex-col min-h-0 px-3 pb-3">
+        <div className="flex-1 min-h-0">
+          {/* Panel 1: Events */}
+          <div className={activeTab === "events" ? "block h-[calc(100vh-160px)]" : "hidden"}>
+            <EventsPanel eventsState={events} plannerState={planner} />
+          </div>
+
+          {/* Panel 2: Planner */}
+          <div className={activeTab === "planner" ? "block h-[calc(100vh-160px)]" : "hidden"}>
+            <TimelinePanel plannerState={planner} />
+          </div>
+
+          {/* Panel 3: Chat */}
+          <div className={activeTab === "chat" ? "block h-[calc(100vh-160px)]" : "hidden"}>
+            <ChatAssistant
+              itinerary={itinerary}
+              selectedDates={selectedDates.map((d) => d.date)}
+              region={region}
+              audience={audience}
+              budget={budget}
+              onExecuteCommand={handleExecuteCommand}
+              embedded
+            />
+          </div>
+        </div>
+
+        {/* Floating Mobile Tab Bar */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-gray-100 dark:border-white/5 py-2 px-6 flex justify-around items-center z-40 shadow-lg">
+          <button
+            onClick={() => setActiveTab("events")}
+            className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors ${
+              activeTab === "events" ? "text-blue-500" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <Calendar size={18} />
+            <span>Events</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("planner")}
+            className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors ${
+              activeTab === "planner" ? "text-blue-500" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <CheckSquare size={18} />
+            <span>Planner</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors ${
+              activeTab === "chat" ? "text-blue-500" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <MessageCircle size={18} />
+            <span>Chat</span>
+          </button>
+        </nav>
+      </div>
+
+      {/* ===== OVERLAYS (Confirm Modals / Popups) ===== */}
+      {/* 1. Add to Timeline Dropdown (manual slot picker) */}
+      {activeAddEventSelector && (
+        <AddToTimelineDropdown
+          event={activeAddEventSelector}
+          itinerary={itinerary || []}
+          onSelect={(dayIdx, slotIdx) => {
+            planner.handleManualAdd(activeAddEventSelector, dayIdx, slotIdx);
+          }}
+          onClose={() => setActiveAddEventSelector(null)}
         />
       )}
 
-      {/* ===== ATTRIBUTION FOOTER ===== */}
-      <footer className="source-attribution-footer py-4 md:py-8">
-        <div className="max-w-3xl mx-auto w-full">
+      {/* 2. Conflict Override Confirmation Dialog */}
+      {pendingConflict && (
+        <ConflictConfirmModal
+          isOpen={true}
+          slotLabel={`${itinerary?.[pendingConflict.dayIdx]?.dayName || ""} ${itinerary?.[pendingConflict.dayIdx]?.timeSlots?.[pendingConflict.slotIdx]?.period || ""}`}
+          existingTitle={pendingConflict.existingTitle}
+          newEventTitle={pendingConflict.event.name}
+          onReplace={planner.confirmReplace}
+          onKeepBoth={planner.confirmKeepBoth}
+          onCancel={planner.cancelConflict}
+        />
+      )}
+
+      {/* ===== GLOBAL SOURCING ATTRIBUTION FOOTER (Visible on Desktop) ===== */}
+      <footer className="hidden lg:block source-attribution-footer py-6 px-6 border-t border-white/10 mt-6">
+        <div className="max-w-7xl mx-auto w-full">
           <p className="source-attribution-label">Events sourced from</p>
           <div className="source-attribution-links">
             {SOURCE_SITES.map((site) => (
@@ -204,43 +205,8 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
       <ScrollToTop />
-      
-      {/* Confirm Start Over Reset Modal */}
-      <ConfirmModal
-        isOpen={showResetConfirm}
-        title="Start Over"
-        message="Are you sure you want to start over? Your current itinerary and any custom modifications will be lost."
-        confirmText="Start Over"
-        cancelText="Keep Itinerary"
-        variant="warning"
-        onConfirm={handleConfirmReset}
-        onCancel={() => setShowResetConfirm(false)}
-      />
-
-      {/* Confirm Regenerate Itinerary Modal */}
-      <ConfirmModal
-        isOpen={showGenerateConfirm}
-        title="Regenerate Itinerary"
-        message="You already have a customized weekend itinerary on your screen. Generating a new plan will replace all current plans. Do you want to proceed?"
-        confirmText="Regenerate"
-        cancelText="Keep Current"
-        variant="warning"
-        onConfirm={handleConfirmGenerate}
-        onCancel={() => setShowGenerateConfirm(false)}
-      />
-
-      {/* Confirm Remove Activity Modal */}
-      <ConfirmModal
-        isOpen={pendingRemove !== null}
-        title="Remove Activity"
-        message={`Are you sure you want to remove "${pendingRemove?.title}" from your itinerary? You can re-add it from the "Explore More" section below later.`}
-        confirmText="Remove"
-        cancelText="Keep Activity"
-        variant="danger"
-        onConfirm={handleConfirmRemove}
-        onCancel={() => setPendingRemove(null)}
-      />
     </main>
   );
 }

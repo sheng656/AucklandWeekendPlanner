@@ -13,6 +13,9 @@ interface ChatAssistantProps {
   audience: string;
   budget: string;
   onExecuteCommand: (command: AgentCommand) => void;
+  /** When true, renders as an inline panel inside a container (AISidebar).
+   *  When false (default), uses the floating-button + fixed-overlay behaviour. */
+  embedded?: boolean;
 }
 
 export default function ChatAssistant({
@@ -21,9 +24,11 @@ export default function ChatAssistant({
   region,
   audience,
   budget,
-  onExecuteCommand
+  onExecuteCommand,
+  embedded = false,
 }: ChatAssistantProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  // In embedded mode, the panel is always visible (no toggle)
+  const [isOpen, setIsOpen] = useState(embedded ? true : false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -210,8 +215,8 @@ export default function ChatAssistant({
 
   return (
     <>
-      {/* Floating Chat Button */}
-      {!isOpen && (
+      {/* Floating Chat Button — hidden in embedded mode */}
+      {!embedded && !isOpen && (
         <motion.button
           className="chat-button"
           onClick={() => setIsOpen(true)}
@@ -232,8 +237,150 @@ export default function ChatAssistant({
       )}
 
       {/* Chat Panel */}
-      <AnimatePresence>
-        {isOpen && (
+      {!itinerary ? (
+        <div
+          className={embedded ? "chat-panel-embedded flex items-center justify-center p-6 text-center h-full min-h-[300px]" : "chat-panel flex items-center justify-center p-6 text-center"}
+          role="region"
+          aria-label="AI Planner Assistant"
+        >
+          <div className="space-y-3 max-w-xs mx-auto my-auto flex flex-col items-center justify-center h-full">
+            <div className="w-10 h-10 rounded-full bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center text-blue-500">
+              <MessageCircle size={20} />
+            </div>
+            <h3 className="font-bold text-gray-800 dark:text-white text-sm">AI Assistant Offline</h3>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              Generate or build an itinerary first to start chatting with AI.
+            </p>
+          </div>
+        </div>
+      ) : embedded ? (
+        /* ── Embedded mode: inline, no animation wrapper needed ── */
+        <div
+          className="chat-panel-embedded"
+          role="region"
+          aria-label="AI Planner Assistant"
+        >
+          {/* Header */}
+          <div className="chat-header">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <Sparkles size={16} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm">AI Assistant</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Itinerary Copilot</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button
+                  onClick={handleClearChat}
+                  className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
+                  title="Clear conversation"
+                >
+                  <Trash2 size={15} className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="chat-messages">
+            {messages.length === 0 && (
+              <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4">
+                <Sparkles size={24} className="mx-auto mb-2 text-blue-400" />
+                <p className="font-semibold mb-1 text-gray-800 dark:text-white text-xs">AI Copilot</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 px-2 mb-3">
+                  Ask me to modify your itinerary!
+                </p>
+                <div className="flex flex-wrap gap-1.5 justify-center px-2">
+                  <button onClick={() => handleChipClick("Add a morning outdoor activity")} className="chat-empty-state-chip">
+                    🏞️ Outdoor morning
+                  </button>
+                  <button onClick={() => handleChipClick("Suggest a popular lunch spot")} className="chat-empty-state-chip">
+                    🍽️ Lunch spot
+                  </button>
+                  <button onClick={() => handleChipClick("Remove evening activities")} className="chat-empty-state-chip">
+                    🗑️ Clear evening
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`chat-message ${message.role === "user" ? "chat-message-user" : ""}`}
+              >
+                <div className={`chat-avatar ${message.role === "user" ? "chat-avatar-user" : "chat-avatar-agent"}`}>
+                  {message.role === "user" ? "👤" : "🤖"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`chat-bubble ${message.role === "user" ? "chat-bubble-user" : "chat-bubble-agent"}`}>
+                    {message.content}
+                  </div>
+                  {message.role === "agent" && message.provider && (
+                    <div className="chat-bubble-meta">
+                      <span>
+                        {message.model?.includes("flash-lite")
+                          ? "⚡ Flash Lite"
+                          : message.model?.includes("flash")
+                          ? "⚡ Flash"
+                          : "🧠 Claude"}
+                      </span>
+                      {message.commands && message.commands.length > 0 && (
+                        <span>• {message.commands.length} action{message.commands.length > 1 ? "s" : ""} applied</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="chat-message">
+                <div className="chat-avatar chat-avatar-agent">🤖</div>
+                <div className="chat-bubble chat-bubble-agent">
+                  <div className="typing-indicator">
+                    <div className="typing-dot"></div>
+                    <div className="typing-dot"></div>
+                    <div className="typing-dot"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="chat-input-container">
+            <div className="chat-input-wrapper">
+              <textarea
+                ref={inputRef}
+                className="chat-input"
+                placeholder="Ask me to modify your itinerary..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                disabled={isLoading}
+              />
+              <button
+                className="chat-send-button"
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || isLoading}
+                aria-label="Send message"
+              >
+                <Send size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ── Floating mode: existing animated overlay ── */
+        <AnimatePresence>
+          {isOpen && (
           <motion.div
             className="chat-panel"
             role="dialog"
@@ -378,8 +525,9 @@ export default function ChatAssistant({
               </div>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Command Notification */}
       <AnimatePresence>
