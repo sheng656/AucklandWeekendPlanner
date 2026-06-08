@@ -72,9 +72,9 @@ export class InfrastructureStack extends cdk.Stack {
       ],
     }));
 
-    // Every 24 hours rule
+    // Eventfinda cron: Runs at 2:00 AM NZST Monday & Friday (14:00 UTC Sunday & Thursday) to refresh event list right at start of week and before weekend
     const rule = new events.Rule(this, 'SchedulePreWarming', {
-      schedule: events.Schedule.rate(cdk.Duration.hours(48)),
+      schedule: events.Schedule.cron({ minute: '0', hour: '14', weekDay: 'SUN,THU' }),
     });
     rule.addTarget(new targets.LambdaFunction(cronLambda));
 
@@ -100,8 +100,9 @@ export class InfrastructureStack extends cdk.Stack {
     dataTable.grantReadWriteData(ourAucklandLambda);
     imageBucket.grantWrite(ourAucklandLambda);
 
+    // OurAuckland cron: Runs at 2:15 AM NZST Monday & Friday (14:15 UTC Sunday & Thursday), staggered by 15 mins to prevent concurrent execution load
     const ourAucklandRule = new events.Rule(this, 'ScheduleOurAucklandSurfaceIngest', {
-      schedule: events.Schedule.rate(cdk.Duration.hours(48)),
+      schedule: events.Schedule.cron({ minute: '15', hour: '14', weekDay: 'SUN,THU' }),
     });
     ourAucklandRule.addTarget(new targets.LambdaFunction(ourAucklandLambda));
 
@@ -121,8 +122,9 @@ export class InfrastructureStack extends cdk.Stack {
     dataTable.grantReadWriteData(kidsLambda);
     imageBucket.grantWrite(kidsLambda);
 
+    // Auckland Kids cron: Runs at 2:30 AM NZST Monday & Friday (14:30 UTC Sunday & Thursday), staggered by 30 mins to prevent concurrent execution load
     const kidsRule = new events.Rule(this, 'ScheduleAucklandKidsIngest', {
-      schedule: events.Schedule.rate(cdk.Duration.hours(48)),
+      schedule: events.Schedule.cron({ minute: '30', hour: '14', weekDay: 'SUN,THU' }),
     });
     kidsRule.addTarget(new targets.LambdaFunction(kidsLambda));
 
@@ -193,6 +195,13 @@ export class InfrastructureStack extends cdk.Stack {
     // Route 3: Metrics endpoint (for admin dashboard logs query)
     api.addRoutes({
       path: '/api/v2/metrics',
+      methods: [apigatewayv2.HttpMethod.GET],
+      integration: apiIntegration,
+    });
+
+    // Route 4: Events endpoint (allows frontend to fetch raw weekend events bypassing LLM and rate limits)
+    api.addRoutes({
+      path: '/api/v2/events',
       methods: [apigatewayv2.HttpMethod.GET],
       integration: apiIntegration,
     });
