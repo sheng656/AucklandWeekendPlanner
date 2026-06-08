@@ -3,6 +3,20 @@ import { trackGenerateItinerary } from "./gtag";
 import { computeTwoWeekendOptions } from "./dateUtils";
 import type { Audience, Budget, SelectedDate, Region, DayPlan, EventData, WeatherForecast, WeatherData } from "../types";
 
+const normalizeItineraryDates = (days: DayPlan[]): DayPlan[] => {
+  return days.map((day) => {
+    if (!day.date) return day;
+    const parts = day.date.split("-");
+    if (parts.length === 3) {
+      const formattedDate = `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+      if (day.date !== formattedDate) {
+        return { ...day, date: formattedDate };
+      }
+    }
+    return day;
+  });
+};
+
 export function usePlanner() {
   const [audience, setAudience] = useState<Audience>("Friends");
   const [budget, setBudget] = useState<Budget>("Medium");
@@ -18,7 +32,13 @@ export function usePlanner() {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const [itinerary, setItinerary] = useState<DayPlan[] | null>(null);
+  const [itinerary, setItineraryState] = useState<DayPlan[] | null>(null);
+  const setItinerary = useCallback((val: DayPlan[] | null | ((prev: DayPlan[] | null) => DayPlan[] | null)) => {
+    setItineraryState((prev) => {
+      const next = typeof val === "function" ? val(prev) : val;
+      return next ? normalizeItineraryDates(next) : null;
+    });
+  }, []);
   const [rawItinerary, setRawItinerary] = useState<string | null>(null);
   const [recommendedEvents, setRecommendedEvents] = useState<EventData[]>([]);
   const [otherEvents, setOtherEvents] = useState<EventData[]>([]);
@@ -42,6 +62,9 @@ export function usePlanner() {
     existingTitle: string;
     isSwap?: boolean;
   } | null>(null);
+
+  // State for removing a day timeline
+  const [pendingRemoveDay, setPendingRemoveDay] = useState<number | null>(null);
 
   // Weather data for preference hints
   const [weatherForecast, setWeatherForecast] = useState<WeatherForecast[]>([]);
@@ -481,7 +504,11 @@ export function usePlanner() {
 
     // Merge (replace if somehow the day already exists) and sort chronologically
     const withNewDay = [...baseItinerary.filter((day) => day.date !== dateStr), newDay]
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => {
+        const da = a.date ? new Date(a.date).getTime() : 0;
+        const db = b.date ? new Date(b.date).getTime() : 0;
+        return da - db;
+      });
 
     // Determine which slot to place the event in (default Morning for 00:00 events)
     const hour = d.getHours();
@@ -528,6 +555,26 @@ export function usePlanner() {
     }
   };
 
+  const handleRemoveDayClick = (dayIdx: number) => {
+    setPendingRemoveDay(dayIdx);
+  };
+
+  const confirmRemoveDay = () => {
+    if (pendingRemoveDay === null || !itinerary) return;
+    const newItinerary = itinerary.filter((_, i) => i !== pendingRemoveDay);
+    setItinerary(newItinerary.length > 0 ? newItinerary : null);
+    if (newItinerary.length === 0) {
+      setRawItinerary(null);
+      setRecommendedEvents([]);
+      setOtherEvents([]);
+    }
+    setPendingRemoveDay(null);
+  };
+
+  const cancelRemoveDay = () => {
+    setPendingRemoveDay(null);
+  };
+
   const handleSelectEvent = useCallback(
     (event: EventData) => {
       if (!swappingSlot || !itinerary) return;
@@ -570,6 +617,7 @@ export function usePlanner() {
     swappingSlot, setSwappingSlot,
     activeAddEventSelector, setActiveAddEventSelector,
     pendingConflict, setPendingConflict,
+    pendingRemoveDay, setPendingRemoveDay,
     weatherForecast,
     weatherData,
     handlePlanWeekend,
@@ -582,6 +630,9 @@ export function usePlanner() {
     confirmReplace,
     confirmKeepBoth,
     cancelConflict,
+    handleRemoveDayClick,
+    confirmRemoveDay,
+    cancelRemoveDay,
     createEmptyTimeline
   };
 }

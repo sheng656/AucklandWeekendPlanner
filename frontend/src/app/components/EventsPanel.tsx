@@ -354,11 +354,16 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
                           <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400">
                             <Clock size={11} className="text-blue-500 flex-shrink-0" />
                             <span className="truncate">
-                              {new Date(event.datetime_start).toLocaleString("en-NZ", {
-                                weekday: "short",
-                                hour: "numeric",
-                                minute: "2-digit"
-                              })}
+                              {(() => {
+                                const d = new Date(event.datetime_start);
+                                const hasTime = !(d.getHours() === 0 && d.getMinutes() === 0);
+                                return d.toLocaleString("en-NZ", {
+                                  weekday: "short",
+                                  day: "numeric",
+                                  month: "short",
+                                  ...(hasTime ? { hour: "numeric", minute: "2-digit", hour12: true } : {})
+                                });
+                              })()}
                             </span>
                           </div>
                         )}

@@ -27,6 +27,7 @@ export default function TimelinePanel({ plannerState }: TimelinePanelProps) {
     handleReset,
     handleRemoveActivity,
     handleSwapClick,
+    handleRemoveDayClick,
     createEmptyTimeline
   } = plannerState;
 
@@ -195,22 +196,29 @@ export default function TimelinePanel({ plannerState }: TimelinePanelProps) {
             </AnimatePresence>
 
             <div className="space-y-4">
-              {itinerary.map((day: any, idx: number) => {
-                const w = getTimelineWeather(day.dayName);
-                return (
-                  <DayTimeline
-                    key={idx}
-                    day={day}
-                    dayIndex={idx}
-                    weatherIcon={w.icon}
-                    weatherTemp={w.temp}
-                    recommendedEvents={recommendedEvents}
-                    swappingSlot={swappingSlot}
-                    onSwapClick={handleSwapClick}
-                    onRemoveClick={handleRemoveActivity}
-                  />
-                );
-              })}
+              {[...itinerary]
+                .sort((a: any, b: any) => {
+                  const da = a.date ? new Date(a.date).getTime() : 0;
+                  const db = b.date ? new Date(b.date).getTime() : 0;
+                  return da - db;
+                })
+                .map((day: any, idx: number) => {
+                  const w = getTimelineWeather(day.dayName);
+                  return (
+                    <DayTimeline
+                      key={day.date || idx}
+                      day={day}
+                      dayIndex={itinerary.indexOf(day)}
+                      weatherIcon={w.icon}
+                      weatherTemp={w.temp}
+                      recommendedEvents={recommendedEvents}
+                      swappingSlot={swappingSlot}
+                      onSwapClick={handleSwapClick}
+                      onRemoveClick={handleRemoveActivity}
+                      onRemoveDayClick={handleRemoveDayClick}
+                    />
+                  );
+                })}
             </div>
           </div>
         )}

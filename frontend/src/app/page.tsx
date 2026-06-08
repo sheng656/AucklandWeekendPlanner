@@ -9,6 +9,7 @@ import EventsPanel from "./components/EventsPanel";
 import ChatAssistant from "./components/ChatAssistant";
 import AddToTimelineDropdown from "./components/AddToTimelineDropdown";
 import ConflictConfirmModal from "./components/ConflictConfirmModal";
+import ConfirmModal from "./components/ConfirmModal";
 import ScrollToTop from "./components/ScrollToTop";
 import { SOURCE_SITES } from "../lib/sourceUtils";
 import { usePlanner } from "../lib/usePlanner";
@@ -29,6 +30,7 @@ export default function Home() {
     activeAddEventSelector,
     setActiveAddEventSelector,
     pendingConflict,
+    pendingRemoveDay,
   } = planner;
 
   const events = useEvents();
@@ -182,6 +184,20 @@ export default function Home() {
           onReplace={planner.confirmReplace}
           onKeepBoth={planner.confirmKeepBoth}
           onCancel={planner.cancelConflict}
+        />
+      )}
+
+      {/* 3. Day Deletion Confirmation Dialog */}
+      {pendingRemoveDay !== null && itinerary && (
+        <ConfirmModal
+          isOpen={true}
+          variant="danger"
+          title={`Remove ${itinerary[pendingRemoveDay]?.dayName}?`}
+          message={`This will remove ${itinerary[pendingRemoveDay]?.dayName} (${itinerary[pendingRemoveDay]?.date}) and all its activities from your plan. This action cannot be undone.`}
+          confirmText="Remove Day"
+          cancelText="Keep It"
+          onConfirm={planner.confirmRemoveDay}
+          onCancel={planner.cancelRemoveDay}
         />
       )}
 

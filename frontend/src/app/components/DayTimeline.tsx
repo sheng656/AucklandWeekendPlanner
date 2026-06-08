@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import TimelineCard, { Activity } from "./TimelineCard";
-import { Sun, Coffee, Sunset, Moon, CloudSun } from "lucide-react";
+import { Sun, Coffee, Sunset, Moon, CloudSun, Trash2 } from "lucide-react";
 import { weatherEmoji } from "./WeatherWidget";
 
 interface TimeSlot {
@@ -38,6 +38,7 @@ interface DayTimelineProps {
   swappingSlot: { dayIdx: number; slotIdx: number; actIdx: number } | null;
   onSwapClick: (dayIdx: number, slotIdx: number, actIdx: number) => void;
   onRemoveClick: (dayIdx: number, slotIdx: number, actIdx: number) => void;
+  onRemoveDayClick: (dayIdx: number) => void;
 }
 
 const periodIcons: Record<string, React.ReactNode> = {
@@ -63,6 +64,7 @@ export default function DayTimeline({
   swappingSlot,
   onSwapClick,
   onRemoveClick,
+  onRemoveDayClick,
 }: DayTimelineProps) {
   function findEventData(eventId: string | null): EventData | undefined {
     if (!eventId || eventId === "null") return undefined;
@@ -77,21 +79,30 @@ export default function DayTimeline({
       className="day-timeline"
     >
       {/* Day header */}
-      <div className="day-timeline-header">
+      <div className="day-timeline-header group">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-bold text-zinc-800">
             {day.dayName}
             <span className="text-zinc-400 font-normal ml-2 text-sm">{day.date}</span>
           </h3>
         </div>
-        {weatherIcon && (
-          <div className="flex items-center gap-2">
-            <span className="text-xl leading-none">
-              {weatherEmoji(weatherIcon)}
-            </span>
-            <span className="text-sm font-semibold text-zinc-600">{weatherTemp}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {weatherIcon && (
+            <div className="flex items-center gap-2">
+              <span className="text-xl leading-none">
+                {weatherEmoji(weatherIcon)}
+              </span>
+              <span className="text-sm font-semibold text-zinc-600">{weatherTemp}</span>
+            </div>
+          )}
+          <button
+            onClick={() => onRemoveDayClick(dayIndex)}
+            className="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 text-gray-400 hover:text-red-500 cursor-pointer"
+            title="Remove this day"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Time slots */}
