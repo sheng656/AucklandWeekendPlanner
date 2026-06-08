@@ -1,97 +1,131 @@
-# Auckland Weekend Planner 🚀
+# Auckland Weekend Planner
 
-Auckland Weekend Planner is a premium, AI-powered travel planning application designed specifically for the Auckland region. It aggregates real-time local event data from multiple sources and leverages a highly resilient, budget-optimized Multi-LLM chain to deliver personalized, interactive, and visually stunning weekend itineraries.
+Auckland Weekend Planner is a weekend planning app for the Auckland region. It combines aggregated local events, weather-aware planning, and an AI assistant that can modify the itinerary directly on screen.
 
----
+## What changed recently
 
-## 🤖 Resilient AI Copilot Agent (Interactive Timeline Assistant)
+- Event cards now include direct Google Maps search links for locations.
+- The planner panel auto-collapses preferences once an itinerary is generated or loaded.
+- Date parsing and filtering now use consistent slicing logic, which reduces off-by-one issues when matching events to selected days.
+- OurAuckland scraping formats dates consistently in the Pacific/Auckland timezone.
+- The backend cron schedules were updated and a dedicated /api/v2/events endpoint was added.
+- Frontend API URL handling was normalized so requests consistently append the expected route paths.
 
-The application features a conversational **AI Copilot (Itinerary Assistant)** that goes beyond generic advice—it possesses deep-timeline interaction capabilities to **modify your schedule on-screen in real-time** via structured commands (`REMOVE`, `ADD`, `SWAP`).
+## Core features
 
-### 🛡️ Resilient Multi-Tier LLM Fallback Chain
-To ensure maximum availability while operating at near **$0 serverless model costs**, the backend utilizes a resilient 3-Tier LLM Fallback Chain:
-1. **Tier 1 (Primary - Free)**: `gemini-2.5-flash-lite` via Google AI Studio (handles 75%+ of requests for lightning speed and zero cost).
-2. **Tier 2 (Secondary - Free)**: `gemini-2.5-flash` via Google AI Studio (triggers automatically on 429 quota exceed, timeouts, or JSON schema failures).
-3. **Tier 3 (Paid Backup - Haiku)**: `global.anthropic.claude-haiku-4-5-20251001-v1:0` via AWS Bedrock ap-southeast-2 (acts as a high-reasoning paid backup if the primary tier experiences service degradation).
+### Event discovery
 
-### ⚡ Caching, Limits & Security
-* **SSM Parameter Store**: Model credentials (like the Google AI Studio Key) are securely stored in **AWS SSM Parameter Store** at `/AucklandPlanner/Config/GEMINI_API_KEY` and loaded dynamically with warm-Lambda in-memory caching.
-* **Token-Saving Conversational Memory**: Supports N-turn dialogue awareness (maintaining the last 5 rounds). The frontend automatically cleans messages before transmission (stripping massive commands arrays and metadata) to minimize request size and conserve context tokens.
-* **MD5 Request Caching**: Hashes the user message and preference variables (`dates`, `budget`, `audience`, `region`, `chatHistory`) using MD5 into a `CACHE#<hash>` key in DynamoDB with a 1-hour TTL, serving duplicate requests instantly.
-* **Daily Rate Limiting**: Implements a strict security limit of 40 requests/IP/day using DynamoDB TTL, protecting key limits from depletion. IP addresses are hashed using SHA-256 (`ipHash`) for strict GDPR compliance.
+- Aggregates Auckland community activities from Eventfinda, OurAuckland, and Auckland for Kids.
+- Deduplicates overlapping listings across sources.
+- Shows source attribution and direct event links.
+- Caches imagery for richer cards and faster delivery.
 
----
+### Real-Time Event Integration
 
-## ✨ Core Features
+- Eventfinda API: NZ's largest entertainment platform.
+- OurAuckland: Auckland Council's official community portal.
+- Auckland for Kids: Dedicated family-friendly scraper.
+- Intelligent Deduplication: similarity scoring checks names and dates to prevent duplicate listings across multiple platforms.
+- High-Fidelity Imagery: automates image caching via S3 and optimized delivery using CloudFront CDN.
 
-### 📅 Real-Time Event Integration
-* **Multi-Source Aggregation**: Scrapes and Aggregates Auckland community activities from:
-  * **Eventfinda API**: NZ's largest entertainment platform.
-  * **OurAuckland**: Auckland Council's official community portal.
-  * **Auckland for Kids**: Dedicated family-friendly scraper.
-* **Intelligent Deduplication**: Similarity scoring checks names and dates, preventing duplicate listings across multiple platforms.
-* **High-Fidelity Imagery**: Automates image caching via S3 and optimized delivery using CloudFront CDN.
+### Weekend planning
 
-### 🎨 Custom Glassmorphic Modals & Visual Polish
-* **Custom Confirm Modal (`ConfirmModal.tsx`)**: Replaced browser standard native `confirm()` alerts with gorgeous, state-driven custom modals using Framer Motion spring overlays.
-  * **Clear Chat**: Custom red-gradient Trash modal.
-  * **Start Over**: Accidental reset interceptor.
-  * **Activity Deletion**: Accidental single-tap trash clicks on mobile are blocked by confirmation checks.
-  * **Itinerary Overwriting**: Warns the user when clicking "Plan my weekend" in the preference panel if an itinerary is already active.
-* **Header & Icon Refinement**: Removed standard beta badges from the header, and added an absolute-positioned sparkling AI badge onto a pulsing sky-cyan glowing button aura that expands on hover.
+- Uses a three-column desktop layout with Events, Planner, and Chat.
+- Falls back to a tabbed mobile layout for smaller screens.
+- Lets you add, swap, or remove events from the timeline.
+- Shows weather-aware guidance for the selected weekend.
 
-### 📊 Hidden Public Analytics Dashboard
-Exposes a hidden monitoring page at `/metrics-dashboard` (accessible directly by URL, unlinked from standard UI controls). It displays real-time operational telemetry queried directly from Sydney's DynamoDB (`METRIC#LOG` records):
-* Total invocations, average response latencies, and token consumption charts.
-* Fallback ratios and model share percentages.
-* Lists detailed fallback incident errors and masked raw transaction logs.
+### AI Copilot Agent
 
----
+The application features a conversational AI Copilot (Itinerary Assistant) that goes beyond generic advice. It can modify your schedule on-screen in real time via structured commands such as REMOVE, ADD, and SWAP.
 
-## 🏗️ Technical Stack
+### AI assistant
 
-- **Frontend**: Next.js 16+, React 19, Tailwind CSS, Framer Motion, Lucide Icons.
-- **API Layer**: AWS API Gateway + Lambda (**Node.js 22.x**).
-- **AI/LLM**: Amazon Bedrock (Claude 4.5 Haiku) + Google AI Studio (Gemini 2.5).
-- **Data Persistence**: DynamoDB (Single-table design with TTL).
-- **Storage/CDN**: Amazon S3 + CloudFront (Image Caching).
-- **Infrastructure**: AWS CDK (Infrastructure as Code).
+- Supports structured itinerary commands such as ADD, REMOVE, and SWAP.
+- Uses a resilient multi-tier LLM fallback chain with request caching and rate limiting.
+- Cleans frontend payloads before sending them to reduce request size and token usage.
 
----
+### Resilient Multi-Tier LLM Fallback Chain
 
-## 📂 Repository Layout
+To ensure maximum availability while operating at near $0 serverless model costs, the backend uses a resilient 3-tier LLM fallback chain:
+
+1. Tier 1 (Primary - Free): gemini-2.5-flash-lite via Google AI Studio for speed and zero cost.
+2. Tier 2 (Secondary - Free): gemini-2.5-flash via Google AI Studio, triggered automatically on quota, timeout, or schema failures.
+3. Tier 3 (Paid Backup - Haiku): global.anthropic.claude-haiku-4-5-20251001-v1:0 via AWS Bedrock ap-southeast-2 as the backup reasoning model.
+
+### Caching, Limits and Security
+
+- SSM Parameter Store keeps model credentials secure at /AucklandPlanner/Config/GEMINI_API_KEY and loads them with warm-Lambda in-memory caching.
+- Token-saving conversational memory supports N-turn dialogue awareness while the frontend strips large command arrays and metadata before transmission.
+- MD5 request caching hashes the message and preference variables into a CACHE#<hash> key in DynamoDB with a 1-hour TTL.
+- Daily rate limiting caps requests at 40 per IP per day using DynamoDB TTL, with IP addresses hashed using SHA-256 for GDPR-friendly storage.
+
+### Operations
+
+- Exposes a hidden metrics dashboard at /metrics-dashboard for internal monitoring.
+- Stores credentials in AWS SSM Parameter Store.
+- Uses DynamoDB for caching, rate limiting, and operational metrics.
+
+### Hidden Public Analytics Dashboard
+
+Exposes a hidden monitoring page at /metrics-dashboard, accessible directly by URL and unlinked from the standard UI. It displays real-time operational telemetry queried directly from Sydney's DynamoDB METRIC#LOG records:
+
+- Total invocations, average response latencies, and token consumption charts.
+- Fallback ratios and model share percentages.
+- Detailed fallback incident errors and masked raw transaction logs.
+
+## Tech stack
+
+- Frontend: Next.js 16.2, React 19, Tailwind CSS v4, Framer Motion, Lucide Icons.
+- API layer: AWS API Gateway + Lambda on Node.js 22.x.
+- AI/LLM: Google AI Studio Gemini plus AWS Bedrock fallback.
+- Persistence: DynamoDB with TTL-based cleanup.
+- Storage/CDN: Amazon S3 and CloudFront.
+- Infrastructure: AWS CDK.
+
+## Repository layout
 
 ```text
 frontend/        Next.js web application
-infrastructure/  AWS CDK stack & Lambda handlers (Cron & API)
-deploy.ps1       One-click deployment helper script
+infrastructure/  AWS CDK stack and Lambda handlers
+docs/            Setup and implementation notes
 ```
 
----
+## Quick start
 
-## 🚀 Quick Start (Local)
+### 1. Deploy the infrastructure
 
-### 1. Deploy Infrastructure
 ```bash
 cd infrastructure
 npm install
 npx cdk deploy --profile YourProfile
 ```
 
-### 2. Configure Environment
-Create `frontend/.env.local`:
+### 2. Configure the frontend
+
+Create `frontend/.env.local` with the base API Gateway URL:
+
 ```env
-NEXT_PUBLIC_API_URL=https://<api-id>.execute-api.ap-southeast-2.amazonaws.com/
+NEXT_PUBLIC_API_URL=https://<api-id>.execute-api.ap-southeast-2.amazonaws.com
 ```
 
-### 3. Start Development
+If you prefer server-side proxying in deployment, set `API_URL` with the same base URL as well.
+
+### 3. Start the app
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Visit `http://localhost:3000` to start planning!
 
----
+Open `http://localhost:3000` in the browser.
 
-*Built with ❤️ for Aucklanders and visitors.*
+## Related docs
+
+- [Frontend setup](frontend/README.md)
+- [Backend implementation notes](docs/AGENT_IMPLEMENTATION.md)
+- [SSM setup](docs/SSM_SETUP.md)
+- [Testing guide](docs/TESTING_GUIDE.md)
+
+*Built with &#10084;&#65039; for Aucklanders and visitors.*

@@ -9,8 +9,9 @@ This directory contains the AWS CDK stack and Lambda handlers for the serverless
   - API Gateway HTTP API
   - API Lambda (itinerary generation)
   - Cron Lambda (event pre-warming)
-  - EventBridge rules for ingestion run every 48 hours
-- Bedrock invocation from API Lambda (Claude 4.5 Haiku).
+  - API routes for `/api/v2/plan`, `/api/v2/agent`, `/api/v2/events`, and `/api/v2/metrics`
+  - EventBridge rules for ingestion run every Monday and Friday morning NZ time, staggered per source
+- Multi-LLM fallback chain in the API Lambda, with Gemini primary tiers and Claude 4.5 Haiku as backup.
 - Eventfinda ingestion pipeline with page-by-page fetch and throttling delay.
 - OurAuckland ingestion pipeline using the Surface API POST endpoint, Cheerio parsing, and detail-page enrichment for location/cost.
 - Auckland for Kids ingestion pipeline using a hybrid WP REST + LD+JSON parsing strategy for precise family discovery.
@@ -28,7 +29,7 @@ This directory contains the AWS CDK stack and Lambda handlers for the serverless
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - AWS CLI configured
 - Bedrock model access in ap-southeast-2
 - Eventfinda credentials
@@ -46,6 +47,8 @@ npx cdk deploy
 
 After deployment, take the CloudFormation output InfrastructureStack.ApiV2Url and append /api/v2/plan for frontend usage.
 
+The same base URL also serves `/api/v2/events`, `/api/v2/agent`, and `/api/v2/metrics`.
+
 Example:
 
 ```text
@@ -57,9 +60,12 @@ https://abc123.execute-api.ap-southeast-2.amazonaws.com/ + api/v2/plan
 
 Expected SSM path:
 
+- /AucklandPlanner/Config/GEMINI_API_KEY
 - /AucklandPlanner/Config/EVENTFINDA_USERNAME
 - /AucklandPlanner/Config/EVENTFINDA_PASSWORD
 - INGEST_DRY_RUN=true can be used in a dev environment to run the ingest path without DynamoDB writes or image uploads.
+
+The Lambda handlers read the base configuration from SSM and cache it in memory between warm invocations.
 
 ## Useful Commands
 

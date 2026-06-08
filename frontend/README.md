@@ -10,8 +10,11 @@ This directory contains the Next.js application used for itinerary input and res
 	- Trip day: Saturday, Sunday, Both Days
 	- Region: Central Auckland, East Auckland, West Auckland, South Auckland, North Shore, Waiheke Island
 - **Multi-Source Event Support**: Dynamic card links and labels for Eventfinda, OurAuckland, and Auckland for Kids.
+- **Location Maps Links**: Event cards open Google Maps searches for venue locations directly from the timeline.
 - **Attribution Footer**: Dedicated section linking to all event data providers.
 - **Weather-Aware Planning**: Real-time forecast integration providing weekend hints in the preference panel.
+- **Auto-Collapsing Planner**: The preferences panel collapses automatically once an itinerary is loaded or created.
+- **Date Filtering Consistency**: Event matching uses consistent date slicing so selected days and scraped events stay aligned.
 - API call flow to backend with selected preferences.
 - Loading state and itinerary regeneration support.
 - Structured timeline rendering with image-rich event cards.
@@ -35,6 +38,8 @@ NEXT_PUBLIC_API_URL=https://<your-api-id>.execute-api.ap-southeast-2.amazonaws.c
 ```
 
 Important: The value should be the base API gateway URL (without any trailing path like `/api/v2/plan`), because the client hooks and components append their specific endpoints (e.g., `/api/v2/events`, `/api/v2/plan`, `/api/v2/agent`) automatically.
+
+Recent updates also normalized this URL handling so the frontend always targets the same base gateway across plan, event, and assistant requests.
 
 ## Local Development
 
