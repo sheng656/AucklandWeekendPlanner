@@ -165,6 +165,9 @@ export default function Home() {
           onSelect={(dayIdx, slotIdx) => {
             planner.handleManualAdd(activeAddEventSelector, dayIdx, slotIdx);
           }}
+          onAddNewDay={() => {
+            planner.handleAddNewDay(activeAddEventSelector);
+          }}
           onClose={() => setActiveAddEventSelector(null)}
         />
       )}

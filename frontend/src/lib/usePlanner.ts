@@ -444,6 +444,63 @@ export function usePlanner() {
     }
   };
 
+  // Creates a brand-new day in the itinerary for the event's date, then auto-places
+  // the event in the matching time slot. Called when the user clicks "Add [date] to plan"
+  // in the AddToTimelineDropdown for an event whose date isn't in the current itinerary.
+  const handleAddNewDay = (event: EventData) => {
+    if (!event.datetime_start) return;
+
+    const dateStr = getLocalDateStr(event.datetime_start);
+    const d = new Date(event.datetime_start);
+    const dayName = d.toLocaleDateString("en-NZ", { weekday: "long" });
+
+    const baseItinerary = ensureItinerary();
+
+    // Build empty slot helper
+    const makeEmptyActivity = (period: string) => ({
+      title: "Available Slot",
+      time: period,
+      cost: "",
+      description: "Click here to add an event.",
+      location: "",
+      eventId: null as string | null,
+      isEmptyPlaceholder: true,
+    });
+
+    const newDay: DayPlan = {
+      dayName,
+      date: dateStr,
+      estimatedTotal: "$0",
+      timeSlots: [
+        { period: "Morning",   activities: [makeEmptyActivity("Morning")] },
+        { period: "Lunch",     activities: [makeEmptyActivity("Lunch")] },
+        { period: "Afternoon", activities: [makeEmptyActivity("Afternoon")] },
+        { period: "Evening",   activities: [makeEmptyActivity("Evening")] },
+      ],
+    };
+
+    // Merge (replace if somehow the day already exists) and sort chronologically
+    const withNewDay = [...baseItinerary.filter((day) => day.date !== dateStr), newDay]
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Determine which slot to place the event in (default Morning for 00:00 events)
+    const hour = d.getHours();
+    const hasSpecificTime = !(hour === 0 && d.getMinutes() === 0);
+    let slotIdx = 0; // Morning default
+    if (hasSpecificTime) {
+      if (hour >= 5 && hour < 12) slotIdx = 0;
+      else if (hour >= 12 && hour < 14) slotIdx = 1;
+      else if (hour >= 14 && hour < 18) slotIdx = 2;
+      else slotIdx = 3;
+    }
+
+    const targetDayIdx = withNewDay.findIndex((day) => day.date === dateStr);
+
+    // Close the selector then place the event into the freshly created day
+    setActiveAddEventSelector(null);
+    executeReplace(event, targetDayIdx, slotIdx, 0, withNewDay);
+  };
+
   const confirmReplace = () => {
     if (!pendingConflict || !itinerary) return;
     const { event, dayIdx, slotIdx, actIdx } = pendingConflict;
@@ -521,6 +578,7 @@ export function usePlanner() {
     handleSwapClick,
     handleSelectEvent,
     handleManualAdd,
+    handleAddNewDay,
     confirmReplace,
     confirmKeepBoth,
     cancelConflict,
