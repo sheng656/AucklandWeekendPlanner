@@ -121,12 +121,9 @@ export function usePlanner() {
     setMoreEventsOpen(false);
 
     try {
-      let apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (apiUrl) {
-        apiUrl = apiUrl.replace(/\/+$/, '');
-      } else {
-        apiUrl = "/api/v2/plan";
-      }
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+        ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "")}/api/v2/plan`
+        : "/api/v2/plan";
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -28,13 +28,13 @@ This directory contains the Next.js application used for itinerary input and res
 
 ## Environment Variables
 
-Create frontend/.env.local:
+Create `frontend/.env.local` if you want to bypass the Next.js API proxy during development (otherwise, it will default to proxying to `API_URL`):
 
 ```env
-NEXT_PUBLIC_API_URL=https://<your-api-id>.execute-api.ap-southeast-2.amazonaws.com/api/v2/plan
+NEXT_PUBLIC_API_URL=https://<your-api-id>.execute-api.ap-southeast-2.amazonaws.com
 ```
 
-Important: The value must include /api/v2/plan, because the frontend calls this URL directly.
+Important: The value should be the base API gateway URL (without any trailing path like `/api/v2/plan`), because the client hooks and components append their specific endpoints (e.g., `/api/v2/events`, `/api/v2/plan`, `/api/v2/agent`) automatically.
 
 ## Local Development
 
@@ -51,7 +51,7 @@ Open http://localhost:3000.
 1. Import the repository into Vercel.
 2. Set Root Directory to frontend.
 3. Keep the Next.js preset.
-4. Add NEXT_PUBLIC_API_URL with the full API route path.
+4. Add `API_URL` (recommended for server-side proxying to avoid client CORS setup) or `NEXT_PUBLIC_API_URL` (for direct client-side requests) with the base API Gateway URL (e.g., `https://<api-id>.execute-api.ap-southeast-2.amazonaws.com`).
 5. Deploy.
 
 ## Request Contract Used by Frontend
