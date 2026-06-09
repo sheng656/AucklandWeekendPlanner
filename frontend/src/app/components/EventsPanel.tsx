@@ -56,9 +56,12 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
     const datesStr = selectedDates.map((d: SelectedDate) => d.date);
     syncFiltersFromPreferences(datesStr, preferenceRegions);
   }, [selectedDates, preferenceRegions, syncFiltersFromPreferences]);
-
   // Dropdown open states
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  // Pagination edit states
+  const [isEditingPage, setIsEditingPage] = useState(false);
+  const [pageInputStr, setPageInputStr] = useState<string>("");
 
   const toggleDropdown = (name: string) => {
     setOpenDropdown(prev => (prev === name ? null : name));
@@ -444,8 +447,46 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
           >
             Prev
           </button>
-          <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
-            Page {currentPage} of {totalPages}
+          <span className="flex items-center gap-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+            Page
+            {isEditingPage ? (
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={pageInputStr}
+                onChange={(e) => setPageInputStr(e.target.value)}
+                onBlur={() => {
+                  const p = parseInt(pageInputStr);
+                  if (!isNaN(p) && p >= 1 && p <= totalPages) {
+                    setCurrentPage(p);
+                  }
+                  setIsEditingPage(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                  if (e.key === "Escape") {
+                    setIsEditingPage(false);
+                  }
+                }}
+                autoFocus
+                className="w-10 text-center bg-white dark:bg-slate-800 border border-blue-500 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 outline-none"
+              />
+            ) : (
+              <button
+                onClick={() => {
+                  setPageInputStr(currentPage.toString());
+                  setIsEditingPage(true);
+                }}
+                className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 font-bold transition-colors cursor-pointer"
+                title="Edit page number"
+              >
+                {currentPage}
+              </button>
+            )}
+            of {totalPages}
           </span>
           <button
             disabled={currentPage === totalPages}
