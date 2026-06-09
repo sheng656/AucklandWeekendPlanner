@@ -111,9 +111,9 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
 
       {/* Filter Row */}
       <div ref={filtersRef} className="p-3 bg-white/10 dark:bg-slate-900/10 border-b border-gray-100 dark:border-white/5 space-y-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-12 gap-1.5 md:gap-2">
           {/* Keyword Search */}
-          <div className="relative col-span-1 md:col-span-2 lg:col-span-1">
+          <div className="relative col-span-12 md:col-span-6 lg:col-span-2">
             <Search className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500" size={14} />
             <input
               type="text"
@@ -125,7 +125,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
           </div>
 
           {/* Region Dropdown */}
-          <div className="relative">
+          <div className="relative col-span-6 md:col-span-3 lg:col-span-2">
             <button
               onClick={() => toggleDropdown("region")}
               className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 text-xs text-gray-600 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-slate-900/80 transition-colors"
@@ -153,7 +153,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
           </div>
 
           {/* Date Dropdown */}
-          <div className="relative">
+          <div className="relative col-span-6 md:col-span-3 lg:col-span-2">
             <button
               onClick={() => toggleDropdown("date")}
               className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 text-xs text-gray-600 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-slate-900/80 transition-colors"
@@ -164,7 +164,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
               <ChevronDown size={12} className="text-gray-400" />
             </button>
             {openDropdown === "date" && (
-              <div className="absolute left-0 mt-1 w-52 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-white/10 rounded-xl shadow-xl p-2 space-y-1">
+              <div className="absolute right-0 lg:left-0 mt-1 w-52 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-white/10 rounded-xl shadow-xl p-2 space-y-1">
                 {allAvailableDates.map((d: SelectedDate) => (
                   <label key={d.date} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
                     <input
@@ -184,7 +184,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
           </div>
 
           {/* Source Dropdown */}
-          <div className="relative">
+          <div className="relative col-span-4 md:col-span-4 lg:col-span-2">
             <button
               onClick={() => toggleDropdown("source")}
               className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 text-xs text-gray-600 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-slate-900/80 transition-colors"
@@ -211,49 +211,46 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
             )}
           </div>
 
-          {/* Time & Cost Inline Options */}
-          <div className="grid grid-cols-2 gap-2">
-            {/* Cost Select */}
-            <div className="relative">
-              <select
-                value={filters.cost}
-                onChange={(e) => setCost(e.target.value as any)}
-                className="w-full px-2 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 text-xs text-gray-600 dark:text-gray-300 focus:outline-none appearance-none"
-              >
-                {costList.map((c) => (
-                  <option key={c} value={c}>{c === "All" ? "Any Price" : c}</option>
-                ))}
-              </select>
-              <ChevronDown size={12} className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
-            </div>
+          {/* Cost Select */}
+          <div className="relative col-span-4 md:col-span-4 lg:col-span-2">
+            <select
+              value={filters.cost}
+              onChange={(e) => setCost(e.target.value as any)}
+              className="w-full px-2 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 text-xs text-gray-600 dark:text-gray-300 focus:outline-none appearance-none cursor-pointer"
+            >
+              {costList.map((c) => (
+                <option key={c} value={c}>{c === "All" ? "Any Price" : c}</option>
+              ))}
+            </select>
+            <ChevronDown size={12} className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
+          </div>
 
-            {/* Time Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => toggleDropdown("time")}
-                className="w-full flex items-center justify-between px-2 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 text-xs text-gray-600 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-slate-900/80 transition-colors"
-              >
-                <span className="truncate">
-                  {filters.times.length === 0 ? "Any Time" : `${filters.times.length} Times`}
-                </span>
-                <ChevronDown size={12} className="text-gray-400" />
-              </button>
-              {openDropdown === "time" && (
-                <div className="absolute right-0 mt-1 w-40 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-white/10 rounded-xl shadow-xl p-2 space-y-1">
-                  {timesList.map((t) => (
-                    <label key={t} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={filters.times.includes(t)}
-                        onChange={() => toggleTime(t)}
-                        className="rounded text-blue-500 focus:ring-blue-400 w-3.5 h-3.5"
-                      />
-                      {t}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Time Dropdown */}
+          <div className="relative col-span-4 md:col-span-4 lg:col-span-2">
+            <button
+              onClick={() => toggleDropdown("time")}
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white/50 dark:bg-slate-900/50 text-xs text-gray-600 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-slate-900/80 transition-colors"
+            >
+              <span className="truncate">
+                {filters.times.length === 0 ? "Any Time" : `${filters.times.length} Times`}
+              </span>
+              <ChevronDown size={12} className="text-gray-400" />
+            </button>
+            {openDropdown === "time" && (
+              <div className="absolute right-0 mt-1 w-40 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-100 dark:border-white/10 rounded-xl shadow-xl p-2 space-y-1">
+                {timesList.map((t) => (
+                  <label key={t} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={filters.times.includes(t)}
+                      onChange={() => toggleTime(t)}
+                      className="rounded text-blue-500 focus:ring-blue-400 w-3.5 h-3.5"
+                    />
+                    {t}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

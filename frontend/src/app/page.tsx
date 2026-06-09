@@ -50,7 +50,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen mesh-bg font-sans flex flex-col pb-16 lg:pb-0">
+    <main className="min-h-screen mesh-bg font-sans flex flex-col pb-24 lg:pb-0">
       {/* ===== HEADER ===== */}
       <motion.header
         initial={{ y: -40, opacity: 0 }}
@@ -125,34 +125,40 @@ export default function Home() {
         </div>
 
         {/* Floating Mobile Tab Bar */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-gray-100 dark:border-white/5 py-2 px-6 flex justify-around items-center z-40 shadow-lg">
+        <nav className="fixed bottom-4 left-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-gray-100 dark:border-white/10 p-1.5 flex justify-between items-center z-40 shadow-2xl rounded-2xl">
           <button
             onClick={() => setActiveTab("events")}
-            className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors ${
-              activeTab === "events" ? "text-blue-500" : "text-gray-400 hover:text-gray-600"
+            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 ${
+              activeTab === "events"
+                ? "bg-blue-50 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5"
             }`}
           >
-            <Calendar size={18} />
+            <Calendar size={18} className={`transition-all duration-300 ${activeTab === "events" ? "scale-110" : ""}`} />
             <span>Events</span>
           </button>
 
           <button
             onClick={() => setActiveTab("planner")}
-            className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors ${
-              activeTab === "planner" ? "text-blue-500" : "text-gray-400 hover:text-gray-600"
+            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 ${
+              activeTab === "planner"
+                ? "bg-blue-50 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5"
             }`}
           >
-            <CheckSquare size={18} />
+            <CheckSquare size={18} className={`transition-all duration-300 ${activeTab === "planner" ? "scale-110" : ""}`} />
             <span>Planner</span>
           </button>
 
           <button
             onClick={() => setActiveTab("chat")}
-            className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors ${
-              activeTab === "chat" ? "text-blue-500" : "text-gray-400 hover:text-gray-600"
+            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 ${
+              activeTab === "chat"
+                ? "bg-blue-50 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5"
             }`}
           >
-            <MessageCircle size={18} />
+            <MessageCircle size={18} className={`transition-all duration-300 ${activeTab === "chat" ? "scale-110" : ""}`} />
             <span>Chat</span>
           </button>
         </nav>
