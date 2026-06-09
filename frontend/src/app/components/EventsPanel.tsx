@@ -23,6 +23,7 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
     toggleSource,
     toggleRegion,
     toggleDate,
+    setDates,
     toggleTime,
     setCost,
     setKeyword,
@@ -56,6 +57,17 @@ export default function EventsPanel({ eventsState, plannerState }: EventsPanelPr
     const datesStr = selectedDates.map((d: SelectedDate) => d.date);
     syncFiltersFromPreferences(datesStr, preferenceRegions);
   }, [selectedDates, preferenceRegions, syncFiltersFromPreferences]);
+
+  // Auto-filter events when a timeline slot is selected for swapping
+  useEffect(() => {
+    if (swappingSlot && itinerary) {
+      const targetDay = itinerary[swappingSlot.dayIdx];
+      if (targetDay && targetDay.date) {
+        setDates([targetDay.date]);
+      }
+    }
+  }, [swappingSlot, itinerary, setDates]);
+
   // Dropdown open states
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 

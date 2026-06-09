@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Compass, Calendar, CheckSquare, MessageCircle, ExternalLink } from "lucide-react";
 import WeatherWidget from "./components/WeatherWidget";
@@ -35,6 +35,13 @@ export default function Home() {
 
   const events = useEvents();
   const [activeTab, setActiveTab] = useState<"events" | "planner" | "chat">("events");
+
+  // Switch to events tab on mobile if user clicks placeholder to swap/add
+  useEffect(() => {
+    if (planner.swappingSlot && activeTab !== "events") {
+      setActiveTab("events");
+    }
+  }, [planner.swappingSlot]);
 
   // Handle agent commands
   const handleExecuteCommand = (command: AgentCommand) => {

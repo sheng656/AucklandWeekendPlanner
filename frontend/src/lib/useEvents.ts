@@ -27,6 +27,7 @@ export interface UseEventsReturn {
   toggleSource: (source: string) => void;
   toggleRegion: (region: Region) => void;
   toggleDate: (date: string) => void;
+  setDates: (dates: string[]) => void;
   toggleTime: (time: string) => void;
   setCost: (cost: CostFilter) => void;
   setKeyword: (keyword: string) => void;
@@ -206,6 +207,13 @@ export function useEvents(): UseEventsReturn {
     }));
   }, []);
 
+  const setDates = useCallback((dates: string[]) => {
+    setFilters((prev) => ({
+      ...prev,
+      dates,
+    }));
+  }, []);
+
   const toggleTime = useCallback((time: string) => {
     setFilters((f) => ({
       ...f,
@@ -244,6 +252,7 @@ export function useEvents(): UseEventsReturn {
     toggleSource,
     toggleRegion,
     toggleDate,
+    setDates,
     toggleTime,
     setCost,
     setKeyword,

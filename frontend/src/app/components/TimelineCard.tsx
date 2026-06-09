@@ -36,14 +36,16 @@ export default function TimelineCard({ activity, eventData, isSwapping, onSwapCl
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         onClick={onSwapClick}
-        className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer group transition-all duration-300 ${isSwapping ? "border-blue-400 bg-blue-50" : "border-zinc-300 bg-zinc-50/50 hover:bg-blue-50/50 hover:border-blue-300"}`}
+        className={`border-2 border-dashed rounded-xl py-3 px-4 flex flex-col items-center justify-center cursor-pointer group transition-all duration-300 ${isSwapping ? "border-blue-400 bg-blue-50" : "border-zinc-300 bg-zinc-50/50 hover:bg-blue-50/50 hover:border-blue-300"}`}
       >
-        <div className={`p-2 rounded-full transition-colors ${isSwapping ? "bg-blue-100 text-blue-600" : "bg-zinc-100 text-zinc-400 group-hover:bg-blue-100 group-hover:text-blue-500"}`}>
-          <Plus className="w-6 h-6" />
+        <div className={`p-1.5 rounded-full transition-colors ${isSwapping ? "bg-blue-100 text-blue-600" : "bg-zinc-100 text-zinc-400 group-hover:bg-blue-100 group-hover:text-blue-500"}`}>
+          <Plus className="w-5 h-5" />
         </div>
-        <span className={`text-sm font-bold ${isSwapping ? "text-blue-600" : "text-zinc-500 group-hover:text-blue-600"}`}>
-          Add an event here
-        </span>
+        <div className={`grid transition-all duration-300 ease-in-out ${isSwapping ? "grid-rows-[1fr] opacity-100 mt-1" : "grid-rows-[0fr] opacity-0 group-hover:grid-rows-[1fr] group-hover:opacity-100 group-hover:mt-1"}`}>
+          <span className={`overflow-hidden text-xs font-bold ${isSwapping ? "text-blue-600" : "text-zinc-500 group-hover:text-blue-600"}`}>
+            Add an event here
+          </span>
+        </div>
       </motion.div>
     );
   }
